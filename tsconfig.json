@@ -4,8 +4,15 @@
     "esModuleInterop": true,
     "moduleResolution": "node",
     "paths": {
-      "*": ["*", "*.ts", "*.tsx"] 
+      "*": ["*", "*.ts", "*.tsx"],
+      "pages/*": ["pages/*"],
+      "components/common/*":["components/common/*"],
+      "assets/images/*": ["src/assets/images/*"]
     },
     "jsx": "react-jsx"
-  }
+  },
+  "include": [
+    "src/**/*",
+    "src/types/**/*.d.ts"
+  ]
 }

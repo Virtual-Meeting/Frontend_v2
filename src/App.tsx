@@ -1,29 +1,22 @@
-import './App.css';
-import styled from 'styled-components';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from 'styled-components';
+import { theme } from 'assets/styles/theme';
 
-// ✅ 스타일드 컴포넌트 정의
-const StyledButton = styled.button`
-  background-color: #4caf50;
-  color: white;
-  padding: 10px 20px;
-  font-size: 16px;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-
-  &:hover {
-    background-color: #388e3c;
-  }
-`;
+import Home from 'pages/home/index';
+import Room from 'pages/room/index';
 
 function App() {
   return (
-    <div className="App">
-       <div style={{ padding: '50px' }}>
-        <h1>Styled Components 테스트</h1>
-        <StyledButton>눌러보세요</StyledButton>
-      </div>
-    </div>
+    <>
+      <ThemeProvider theme={theme}>
+        <Router>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/room" element={<Room />}/>
+        </Routes>
+      </Router>
+      </ThemeProvider>
+    </>
   );
 }
 
