@@ -1,0 +1,52 @@
+import styled, { css } from 'styled-components';
+
+interface StyledButtonProps {
+  variant: 'primary' | 'secondary';
+}
+
+export const StyledButton = styled.button<StyledButtonProps>`
+  width:100%;
+  padding: 0.75rem 0rem;
+  text-aligin:center;
+  font-size: ${({ theme }) => theme.fontSizes.md};
+  font-weight: ${({ theme }) => theme.fontWeights.medium};
+  border: none;
+  border-radius: ${({ theme }) => theme.borders.radius.sm};
+  cursor: pointer;
+
+  ${({ variant, theme }) =>
+    variant === 'primary' &&
+    css`
+      background-color: ${theme.colors.primary};
+      color: ${theme.colors.text.inverse};
+
+      &:hover {
+        background-color: #335ed6;
+      }
+
+      &:disabled {
+        background-color: ${theme.colors.border};
+        color: ${theme.colors.text.muted};
+        cursor: not-allowed;
+      }
+    `}
+
+  ${({ variant, theme }) =>
+    variant === 'secondary' &&
+    css`
+      background-color: ${theme.colors.background.light};
+      color: ${theme.colors.primary};
+      border: 1px solid ${theme.colors.primary};
+
+      &:hover {
+        background-color: #335ed6;
+        color: ${theme.colors.text.inverse}
+      }
+
+      &:disabled {
+        background-color: ${theme.colors.border};
+        color: ${theme.colors.text.muted};
+        cursor: not-allowed;
+      }
+    `}
+`;
