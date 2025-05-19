@@ -4,19 +4,22 @@ import Button from 'components/common/Button';
 import Input from 'components/common/Input';
 import { Wrapper, WaitingWrapper, JoinWrapper, PreviewWapper, InputWrapper, LogoImage } from './Waiting.styles';
 
+type Props = {
+    isRoom: (name: string, roomId: string) => void;
+}
 
-const Waiting: React.FC = () => {
+
+const Waiting: React.FC<Props> = ({isRoom}) => {
     const [name, setName] = useState('');
     const [roomId, setRoomId] = useState('');
 
     const handleJoin = () => {
-    if (!name.trim()) {
-        alert('이름을 입력해주세요.');
-        return;
-    }
-
-    // 방 참가 로직 연결
-    console.log('참가자 이름:', name);
+        if (!name.trim()) {
+            alert('이름을 입력해주세요.');
+            return;
+        }
+        
+        isRoom(name, roomId);
     };
 
     return(
