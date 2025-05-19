@@ -7,7 +7,7 @@ interface StyledButtonProps {
 export const StyledButton = styled.button<StyledButtonProps>`
   width:100%;
   padding: 0.75rem 0rem;
-  text-aligin:center;
+  text-align:center;
   font-size: ${({ theme }) => theme.fontSizes.md};
   font-weight: ${({ theme }) => theme.fontWeights.medium};
   border: none;
