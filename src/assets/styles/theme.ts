@@ -27,6 +27,7 @@ export const theme: DefaultTheme = {
     },
   },
   fontSizes: {
+    xxs: '0.75rem',
     xs: '0.875rem',  // 작은 폰트 (예: 작은 텍스트)
     sm: '1rem',      // 기본 폰트 (본문 텍스트)
     md: '1.25rem',   // 중간 크기 폰트 (헤더)

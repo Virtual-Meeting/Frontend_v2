@@ -5,9 +5,11 @@
     "moduleResolution": "node",
     "paths": {
       "*": ["*", "*.ts", "*.tsx"],
+      "lib/*": ["lib/*"],
       "pages/*": ["pages/*"],
       "components/common/*":["components/common/*"],
-      "assets/images/*": ["src/assets/images/*"]
+      "assets/images/*": ["src/assets/images/*"],
+      "assets/icons/*": ["assets/icons/*"]
     },
     "jsx": "react-jsx"
   },
