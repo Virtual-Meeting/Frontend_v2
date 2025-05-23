@@ -28,6 +28,7 @@ declare module 'styled-components' {
         };
     };
     fontSizes: {
+        xxs: string;
         xs: string;
         sm: string;
         md: string;

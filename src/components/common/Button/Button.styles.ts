@@ -1,7 +1,7 @@
 import styled, { css } from 'styled-components';
 
 interface StyledButtonProps {
-  variant: 'primary' | 'secondary';
+  variant: 'primary' | 'secondary' | 'exit';
 }
 
 export const StyledButton = styled.button<StyledButtonProps>`
@@ -46,6 +46,25 @@ export const StyledButton = styled.button<StyledButtonProps>`
       &:disabled {
         background-color: ${theme.colors.border};
         color: ${theme.colors.text.muted};
+        cursor: not-allowed;
+      }
+    `}
+
+    ${({ variant, theme }) =>
+    variant === 'exit' &&
+    css`
+      background-color: ${theme.colors.mediaControl.off};
+      color: #fff;
+      font-size: ${theme.fontSizes.xs};
+      margin:0.75rem;
+
+      &:hover {
+        background-color: #e03131;
+      }
+
+      &:disabled {
+        background-color: #f5a2a2;
+        color: #fff;
         cursor: not-allowed;
       }
     `}

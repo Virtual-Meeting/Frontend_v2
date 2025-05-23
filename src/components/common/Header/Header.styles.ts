@@ -14,12 +14,6 @@ export const HeaderWrapper = styled.header<HeaderProps>`
   border-bottom: ${({ theme }) => theme.borders.width} solid ${({ theme }) => theme.colors.border};
 
   height: ${({ variant }) => (variant === 'compact' ? '2.95rem' : '3.95rem')};
-
-  ${({ variant }) =>
-    variant === 'compact' &&
-    css`
-      padding: 0 1rem;
-    `}
 `;
 
 export const LogoImage = styled(Logo)`

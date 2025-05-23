@@ -1,23 +1,49 @@
-import React, { useRef, useEffect, forwardRef } from 'react';
+import React, { forwardRef } from 'react';
+import {
+  ParticipantContainer,
+  StyledVideo,
+  UsernameOverlay,
+  Placeholder,
+  UsernameContent,
+  Icon
+} from './ParticipantVideo.styles';
+
+import { MicOffIcon } from 'assets/icons/white';
 
 type Props = {
   sessionId: string;
   username: string;
+  isVideoOn: boolean;
+  isAudioOn: boolean;
 };
 
 const ParticipantVideo = forwardRef<HTMLVideoElement, Props>(
-  ({ sessionId, username }, ref) => {
+  ({ sessionId, username, isVideoOn, isAudioOn }, ref) => {
     return (
-      <div id={sessionId}>
-        <video
+      <ParticipantContainer id={sessionId}>
+        {isVideoOn ? (
+          <StyledVideo
             id={`video-${sessionId}`}
             ref={ref}
-            autoPlay = {true}
-            controls = {false}
-            style={{ width: '100%' }}
-        />
-        <div>{username}</div>
-      </div>
+            autoPlay
+            muted
+            playsInline
+          />
+        ) : (
+          <Placeholder>{username.charAt(0).toUpperCase()}</Placeholder>
+        )}
+
+        <UsernameOverlay>
+          <UsernameContent>
+            {!isAudioOn && (
+              <Icon>
+                <MicOffIcon />
+              </Icon>
+            )}
+            {username}
+          </UsernameContent>
+        </UsernameOverlay>
+      </ParticipantContainer>
     );
   }
 );

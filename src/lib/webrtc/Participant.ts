@@ -12,8 +12,8 @@ export default class Participant {
         sessionId: string,
         username: string,
         sendMessage: SendMessageFunc,
-        videoOn: boolean = true,
-        audioOn: boolean = true
+        videoOn: boolean,
+        audioOn: boolean
     ) 
 
     {
