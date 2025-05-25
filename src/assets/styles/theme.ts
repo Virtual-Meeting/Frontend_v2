@@ -10,7 +10,7 @@ export const theme: DefaultTheme = {
     },
     text: {
       default: '#121212',        // 일반 텍스트
-      muted: '#8D8F98',          // 서브 텍스트 (설명 등)
+      muted: '#8A8A8A',          // 서브 텍스트 (설명 등)
       inverse: '#FFFFFF',        // 다크 배경에서 쓰는 텍스트
     },
     border: '#F1F0F0',           // 경계선/보더 색상
@@ -23,7 +23,7 @@ export const theme: DefaultTheme = {
     },
     mediaControl: {
       on: '#121212',
-      off: '#FF4D4D'
+      off: '#ff4d4f'
     },
   },
   fontSizes: {
