@@ -42,8 +42,32 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
     const [emotesVisible, setEmotesVisible] = useState(false);
 
     // 상태 변경을 위한 핸들러 함수들
-    const handleMicToggle = () => setMicOn((prev) => !prev);
-    const handleVideoToggle = () => setVideoOn((prev) => !prev);
+    // const handleMicToggle = () => setMicOn((prev) => !prev);
+    // const handleVideoToggle = () => setVideoOn((prev) => !prev);
+    const handleMicToggle = () => {
+        setMicOn((prev) => {
+            const newMicState = !prev;
+            sendMessage({
+            eventId: 'audioStateChange',
+            audioOn: newMicState,
+            sessionId: userData.sessionId
+            });
+            return newMicState;
+        });
+    };
+
+    const handleVideoToggle = () => {
+        setVideoOn((prev) => {
+            const newVideoState = !prev;
+            sendMessage({
+            eventId: 'videoStateChange',
+            videoOn: newVideoState,
+            sessionId: userData.sessionId
+            });
+            return newVideoState;
+        });
+    };
+
     const handleScreenSharingToggle = () => setScreenSharing((prev) => !prev);
     const handleRecordingToggle = () => setRecording((prev) => !prev);
     const handleCaptionsToggle = () => setCaptionsVisible((prev) => !prev);
@@ -58,6 +82,7 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
 
     const [participants, setParticipants] = useState<{ [sessionId: string]: Participant }>({});
     const participantsRef = useRef<{ [sessionId: string]: Participant }>({});
+    const [roomLeader, setRoomLeader] = useState<{ sessionId: string; username: string }>({ sessionId: '', username: ''});
 
     const [userData, setUserData] = useState<UserData>({
         sessionId: '',
@@ -116,11 +141,20 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                 case 'exitRoom':
                     userLeft(parsedMessage);
                     break;
+                case 'leaderChanged':
+                    handleLeaderChanged(parsedMessage);
+                    break;
                 case 'sendPersonalChat':
                     handleChatMessage(parsedMessage, true);
                     break;
                 case 'broadcastChat':
                     handleChatMessage(parsedMessage, false);
+                    break;
+                case 'audioStateChange':
+                    handleAudioStateChange(parsedMessage);
+                    break;
+                case 'videoStateChange':
+                    handleVideoStateChange(parsedMessage);
                     break;
                 case 'sendPrivateEmoji': //비공개 이모지
                     handleEmojiMessage(parsedMessage, true);
@@ -155,7 +189,13 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
         }
     }
     
-    const roomCreated = (response:{ sessionId: string; username: string; roomId: string; }) => {
+    const roomCreated = (response:{ 
+        sessionId: string;
+        username: string;
+        roomId: string;
+        roomLeaderId: string;
+        roomLeaderName: string;
+     }) => {
         console.log('Room created response:', response);
 
         // 서버에서 받은 응답에 맞게 유저 데이터를 업데이트
@@ -219,6 +259,12 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
     const sendExistingUsers = (msg) => {
         const participant = new Participant(msg.sessionId, msg.username,sendMessage, msg.videoOn, msg.audioOn);
         participantsRef.current[msg.sessionId] = participant;
+
+        setRoomLeader({
+            sessionId: msg.roomLeaderId,
+            username: msg.roomLeaderName,
+        });
+
         setParticipants(prev => ({
             ...prev,
             [msg.sessionId]: participant
@@ -372,28 +418,75 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
     }
 
     const userLeft = (request: { sessionId: string }) => {
-        const participant = participantsRef.current[request.sessionId];
+        const sessionId = request.sessionId;
+        const participant = participantsRef.current[sessionId];
 
         if (!participant) {
-            console.warn("해당 sessionId의 참가자가 없습니다:", request.sessionId);
+            console.warn("🚫 해당 sessionId의 참가자가 없습니다:", sessionId);
             return;
         }
 
-        // WebRTC 리소스 정리
+        console.log("👋 사용자 퇴장 처리 시작:", participant.username);
+
+        // 1. WebRTC 연결 정리
         participant.dispose();
 
-        // 상태에서 제거
+        // 2. ref 객체에서 삭제
+        delete participantsRef.current[sessionId];
+        delete videoRefs.current[sessionId];
+
+        // 3. 상태에서 제거 → UI에서 사라짐
         setParticipants(prev => {
             const updated = { ...prev };
-            delete updated[request.sessionId];
+            delete updated[sessionId];
             return updated;
         });
 
-        delete participantsRef.current[request.sessionId];
-
-        // videoRefs도 정리
-        delete videoRefs.current[request.sessionId];
+        // 4. 방장이 나갔다면 콘솔 알림 (방장 변경은 서버에서 별도 이벤트로 처리 중)
+        if (roomLeader.sessionId === sessionId) {
+            console.log("⚠️ 방장이 퇴장했습니다. 서버에서 leaderChanged 이벤트가 오기를 대기 중...");
+        }
     };
+
+
+
+    const handleLeaderChanged = (data: { sessionId: string; username: string }) => {
+        setRoomLeader({
+            sessionId: data.sessionId,
+            username: data.username,
+        });
+    };
+
+    // 오디오 상태 변경 처리 함수
+    const handleAudioStateChange = (msg) => {
+        setParticipants(prev => {
+            const updated = { ...prev };
+            if (updated[msg.sessionId]) {
+                updated[msg.sessionId].audioOn = msg.audioOn;
+            }
+            return updated;
+        });
+
+        if (participantsRef.current[msg.sessionId]) {
+            participantsRef.current[msg.sessionId].audioOn = msg.audioOn;
+        }
+    };
+
+    // 비디오 상태 변경 처리 함수
+    const handleVideoStateChange = (msg) => {
+        setParticipants(prev => {
+            const updated = { ...prev };
+            if (updated[msg.sessionId]) {
+                updated[msg.sessionId].videoOn = msg.videoOn;
+            }
+            return updated;
+        });
+
+        if (participantsRef.current[msg.sessionId]) {
+            participantsRef.current[msg.sessionId].videoOn = msg.videoOn;
+        }
+    };
+
 
     const handleUsernameChanged = (data: { sessionId: string; newUserName: string }) => {
         // participants 상태 업데이트
