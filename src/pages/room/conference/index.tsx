@@ -9,6 +9,7 @@ import Sidebar from 'components/common/Sidebar';
 import { ChatMessage, ChatMessageInput } from 'types/chat';
 import { EmojiMessage } from 'types/emoji';
 import EmojiPicker from 'components/common/EmojiPicker';
+import ChangeNameForm from 'components/common/UserSettings/ChangeNameForm';
 
 
 type ConferenceProps = {
@@ -127,7 +128,8 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                 case 'sendPublicEmoji': //공개 이모지
                     handleEmojiMessage(parsedMessage, false);
                     break;
-
+                case 'changeName': //이름 변경
+                    handleUsernameChanged(parsedMessage);
                 default:
                     console.error('Unrecognized message', parsedMessage);
             }
@@ -393,6 +395,31 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
         delete videoRefs.current[request.sessionId];
     };
 
+    const handleUsernameChanged = (data: { sessionId: string; newUserName: string }) => {
+        // participants 상태 업데이트
+        setParticipants(prev => {
+            const updated = { ...prev };
+            if (updated[data.sessionId]) {
+            updated[data.sessionId].username = data.newUserName;
+            }
+            return updated;
+        });
+
+        // ref에도 반영
+        if (participantsRef.current[data.sessionId]) {
+            participantsRef.current[data.sessionId].username = data.newUserName;
+        }
+
+        // 본인일 경우 userData도 업데이트
+        if (data.sessionId === userData.sessionId) {
+            setUserData(prev => ({
+            ...prev,
+            username: data.newUserName,
+            }));
+        }
+    };
+
+
     const handleChatMessage = (
         data: {
             senderSessionId: string;
@@ -522,6 +549,18 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                 onExit={exitRoom}
             />
         </MainArea>
+        <ChangeNameForm
+            currentName={userData.username}
+            sessionId={userData.sessionId}
+            onChangeName={(newName) => {
+                const message = {
+                eventId: 'changeName',
+                sessionId: userData.sessionId,
+                newUserName: newName,
+                };
+                sendMessage(message);
+            }}
+            />
         <Sidebar 
             participants={Object.values(participants)} 
             participantsVisible={participantsVisible}
