@@ -1,15 +1,16 @@
 {
   "compilerOptions": {
-    "baseUrl": "src", 
+    "baseUrl": "src",
     "esModuleInterop": true,
     "moduleResolution": "node",
     "paths": {
-      "*": ["*", "*.ts", "*.tsx"],
+      "assets/*": ["assets/*"],
+      "assets/images/*": ["assets/images/*"],
+      "assets/images/emojis/*": ["assets/images/emojis/*"],
+      "components/common/*": ["components/common/*"],
       "lib/*": ["lib/*"],
       "pages/*": ["pages/*"],
-      "components/common/*":["components/common/*"],
-      "assets/images/*": ["src/assets/images/*"],
-      "assets/icons/*": ["assets/icons/*"]
+      "types/*": ["types/*"]
     },
     "jsx": "react-jsx"
   },

@@ -4,7 +4,12 @@ import Header from 'components/common/Header';
 import Participant from 'lib/webrtc/Participant';
 import ParticipantVideo from 'components/common/Video/ParticipantVideo';
 import CallControls from 'components/common/CallControls';
-import { Wrapper, GalleryWrapper } from './Conference.styles';
+import { Wrapper, GalleryWrapper, MainArea } from './Conference.styles';
+import Sidebar from 'components/common/Sidebar';
+import { ChatMessage, ChatMessageInput } from 'types/chat';
+import { EmojiMessage } from 'types/emoji';
+import EmojiPicker from 'components/common/EmojiPicker';
+
 
 type ConferenceProps = {
   name: string;
@@ -61,6 +66,10 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
         videoOn: true,
     });
 
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+    const [emojiMessages, setEmojiMessages] = useState<EmojiMessage[]>([]);
+    const hasSidebar = chatVisible || participantsVisible;
+
     useEffect(()=>{
         ws.current = new WebSocket(wsServerUrl);
 
@@ -106,6 +115,19 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                 case 'exitRoom':
                     userLeft(parsedMessage);
                     break;
+                case 'sendPersonalChat':
+                    handleChatMessage(parsedMessage, true);
+                    break;
+                case 'broadcastChat':
+                    handleChatMessage(parsedMessage, false);
+                    break;
+                case 'sendPrivateEmoji': //비공개 이모지
+                    handleEmojiMessage(parsedMessage, true);
+                    break;
+                case 'sendPublicEmoji': //공개 이모지
+                    handleEmojiMessage(parsedMessage, false);
+                    break;
+
                 default:
                     console.error('Unrecognized message', parsedMessage);
             }
@@ -199,6 +221,12 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
             ...prev,
             [msg.sessionId]: participant
         }));
+
+        setUserData((prevData) => ({
+            ...prevData,
+            sessionId: msg.sessionId,
+        }));
+        
 
         if (!videoRefs.current[msg.sessionId]) {
             videoRefs.current[msg.sessionId] = React.createRef<HTMLVideoElement>();
@@ -365,6 +393,76 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
         delete videoRefs.current[request.sessionId];
     };
 
+    const handleChatMessage = (
+        data: {
+            senderSessionId: string;
+            senderName: string;
+            receiverSessionId: string;
+            receiverName: string;
+            message: string;
+        },
+        isPrivate: boolean
+        ) => {
+        const chat: ChatMessage = {
+            type: isPrivate ? 'private' : 'public',
+            from: data.senderName,
+            to: data.receiverName,
+            content: data.message,
+            sessionId: data.senderSessionId,
+        };
+        console.log("Chat message added:", chat); // 디버그용 로그
+        setChatMessages(prev => [...prev, chat]);
+    };
+
+    const sendChatMessage = ({ to, content, isPrivate }: ChatMessageInput) => {
+        // 내가 보낸 메시지를 상태에 바로 추가
+        const newMessage: ChatMessage = {
+            type: isPrivate ? 'private' : 'public',
+            from: userData.username,  // 내가 보낸 메시지의 경우, userData에서 이름을 가져옵니다.
+            to,
+            content,
+            sessionId: userData.sessionId,
+        };
+
+        // 상태에 추가하여 즉시 표시되게 하기
+        setChatMessages((prevMessages) => [...prevMessages, newMessage]);
+
+        const messagePayload = {
+            eventId: isPrivate ? 'sendDirectChat' : 'broadcastChat',
+            receiverSessionId: to,
+            message: content,
+        };
+
+        sendMessage(messagePayload);
+    };
+
+    const handleEmojiMessage = (
+        data: {
+            senderSessionId: string;
+            senderName: string;
+            receiverSessionId: string;
+            receiverName: string;
+            emoji: string;
+        },
+        isPrivate: boolean
+        ) => {
+        const emojiMessage: EmojiMessage = {
+            type: isPrivate ? 'private' : 'public',
+            from: data.senderName,
+            to: data.receiverName,
+            emoji: data.emoji,
+            sessionId: data.senderSessionId,
+        };
+
+        setEmojiMessages((prev) => [...prev, emojiMessage]);
+
+        // 3초 뒤 자동 제거 (애니메이션 처리 가능)
+        setTimeout(() => {
+            setEmojiMessages((prev) => prev.filter((m) => m !== emojiMessage));
+        }, 3000);
+    };
+
+
     
     // 참가자 상태가 변경될 때마다 UI에 반영
     useEffect(() => {
@@ -397,31 +495,58 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
 
     return (
     <Wrapper>
-        <Header variant="compact" />
-        <GalleryWrapper>
-            {Object.values(participants).map((participant) => (
-                <ParticipantVideo isVideoOn={participant.videoOn} isAudioOn={participant.audioOn} key={participant.sessionId} sessionId={participant.sessionId} username={participant.username}  ref={videoRefs.current[participant.sessionId]}/>
-            ))}
-        </GalleryWrapper>
-        <CallControls
-            micOn={micOn}
-            setMicOn={handleMicToggle}
-            videoOn={videoOn}
-            setVideoOn={handleVideoToggle}
-            screenSharing={screenSharing}
-            setScreenSharing={handleScreenSharingToggle}
-            recording={recording}
-            setRecording={handleRecordingToggle}
-            captionsVisible={captionsVisible}
-            setCaptionsVisible={handleCaptionsToggle}
-            chatVisible={chatVisible}
-            setChatVisible={handleChatToggle}
+        <MainArea>
+            <Header variant="compact" />
+            <GalleryWrapper>
+                {Object.values(participants).map((participant) => (
+                    <ParticipantVideo isVideoOn={participant.videoOn} isAudioOn={participant.audioOn} key={participant.sessionId} sessionId={participant.sessionId} username={participant.username}  ref={videoRefs.current[participant.sessionId]}/>
+                ))}
+            </GalleryWrapper>
+            <CallControls
+                micOn={micOn}
+                setMicOn={handleMicToggle}
+                videoOn={videoOn}
+                setVideoOn={handleVideoToggle}
+                screenSharing={screenSharing}
+                setScreenSharing={handleScreenSharingToggle}
+                recording={recording}
+                setRecording={handleRecordingToggle}
+                captionsVisible={captionsVisible}
+                setCaptionsVisible={handleCaptionsToggle}
+                chatVisible={chatVisible}
+                setChatVisible={handleChatToggle}
+                participantsVisible={participantsVisible}
+                setParticipantsVisible={handleParticipantsToggle}
+                emotesVisible={emotesVisible}
+                setEmotesVisible={handleEmotesToggle}
+                onExit={exitRoom}
+            />
+        </MainArea>
+        <Sidebar 
+            participants={Object.values(participants)} 
             participantsVisible={participantsVisible}
-            setParticipantsVisible={handleParticipantsToggle}
-            emotesVisible={emotesVisible}
-            setEmotesVisible={handleEmotesToggle}
-            onExit={exitRoom}
+            chatVisible={chatVisible} 
+            chatMessages={chatMessages}
+            currentUserSessionId={userData.sessionId}
+            onSendMessage={sendChatMessage}
         />
+        {emotesVisible && (
+            <EmojiPicker
+                participants={Object.values(participants)}
+                currentUserSessionId={userData.sessionId}
+                onClose={() => setEmotesVisible(false)}
+                onSelect={(emojiName, receiver) => {
+                const messagePayload = {
+                    eventId: receiver ? 'sendPrivateEmoji' : 'sendPublicEmoji',
+                    senderSessionId: userData.sessionId,
+                    receiverSessionId: receiver?.sessionId || userData.sessionId,
+                    emoji: emojiName,
+                };
+                sendMessage(messagePayload);
+                }}
+                hasSidebar={hasSidebar}
+            />
+        )}
     </Wrapper>
     );
 };
