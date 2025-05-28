@@ -160,7 +160,7 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                 //     handleEmojiMessage(parsedMessage, true);
                 //     break;
                 case 'sendPublicEmoji': //공개 이모지
-                    handleEmojiMessage(parsedMessage, false);
+                    handleEmojiMessage(parsedMessage);
                     break;
                 case 'changeName': //이름 변경
                     handleUsernameChanged(parsedMessage);
@@ -568,11 +568,8 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
             receiverSessionId: string;
             receiverName: string;
             emoji: string;
-        },
-        isPrivate: boolean
-        ) => {
+        }) => {
         const emojiMessage: EmojiMessage = {
-            type: isPrivate ? 'private' : 'public',
             from: data.senderName,
             to: data.receiverName,
             emoji: data.emoji,
@@ -586,8 +583,6 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
             setEmojiMessages((prev) => prev.filter((m) => m !== emojiMessage));
         }, 3000);
     };
-
-
     
     // 참가자 상태가 변경될 때마다 UI에 반영
     useEffect(() => {
@@ -624,8 +619,19 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
             <Header variant="compact" />
             <GalleryWrapper>
                 {Object.values(participants).map((participant) => (
-                    <ParticipantVideo isVideoOn={participant.videoOn} isAudioOn={participant.audioOn} key={participant.sessionId} sessionId={participant.sessionId} username={participant.username}  ref={videoRefs.current[participant.sessionId]}/>
+                    <ParticipantVideo 
+                        isVideoOn={participant.videoOn} 
+                        isAudioOn={participant.audioOn} 
+                        key={participant.sessionId} 
+                        sessionId={participant.sessionId} 
+                        username={participant.username}  
+                        ref={videoRefs.current[participant.sessionId]}
+                        emojiName={
+                            emojiMessages.find((msg) => msg.sessionId === participant.sessionId)?.emoji
+                        }
+                    />
                 ))}
+                
             </GalleryWrapper>
             <CallControls
                 micOn={micOn}
@@ -673,13 +679,18 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                 currentUserSessionId={userData.sessionId}
                 onClose={() => setEmotesVisible(false)}
                 onSelect={(emojiName, receiver) => {
-                const messagePayload = {
-                    eventId: /*receiver ? 'sendPrivateEmoji' :*/ 'sendPublicEmoji',
-                    senderSessionId: userData.sessionId,
-                    receiverSessionId: receiver?.sessionId || userData.sessionId,
-                    emoji: emojiName,
-                };
-                sendMessage(messagePayload);
+                    if (!receiver) {
+                        console.warn("❗ 수신자가 없습니다. 이모지를 보내지 않습니다.");
+                        return;
+                    }
+                    const messagePayload = {
+                        eventId: 'sendPublicEmoji',
+                        // senderSessionId: userData.sessionId,
+                        receiverSessionId: receiver.sessionId,
+                        emoji: emojiName,
+                    };
+                    
+                    sendMessage(messagePayload);
                 }}
                 hasSidebar={hasSidebar}
             />

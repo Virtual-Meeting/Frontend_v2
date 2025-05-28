@@ -8,6 +8,8 @@ import {
   Icon
 } from './ParticipantVideo.styles';
 
+import EmojiEffects from '../EmojiEffects';
+
 import { MicOffIcon } from 'assets/icons/white';
 
 type Props = {
@@ -15,10 +17,11 @@ type Props = {
   username: string;
   isVideoOn: boolean;
   isAudioOn: boolean;
+  emojiName?: string;
 };
 
 const ParticipantVideo = forwardRef<HTMLVideoElement, Props>(
-  ({ sessionId, username, isVideoOn, isAudioOn }, ref) => {
+  ({ sessionId, username, isVideoOn, isAudioOn, emojiName }, ref) => {
     return (
       <ParticipantContainer id={sessionId}>
         {isVideoOn ? (
@@ -43,6 +46,7 @@ const ParticipantVideo = forwardRef<HTMLVideoElement, Props>(
             {username}
           </UsernameContent>
         </UsernameOverlay>
+        <EmojiEffects emojiName={emojiName}/>
       </ParticipantContainer>
     );
   }
