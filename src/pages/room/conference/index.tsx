@@ -573,7 +573,7 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
             from: data.senderName,
             to: data.receiverName,
             emoji: data.emoji,
-            sessionId: data.senderSessionId,
+            sessionId: data.receiverSessionId,
         };
 
         setEmojiMessages((prev) => [...prev, emojiMessage]);
