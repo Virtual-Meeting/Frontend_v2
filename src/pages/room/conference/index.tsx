@@ -10,7 +10,7 @@ import { ChatMessage, ChatMessageInput } from 'types/chat';
 import { EmojiMessage } from 'types/emoji';
 import EmojiPicker from 'components/common/EmojiPicker';
 import ChangeNameForm from 'components/common/UserSettings/ChangeNameForm';
-
+import { useScreenRecording } from 'lib/hooks/useRecording';
 
 type ConferenceProps = {
   name: string;
@@ -41,9 +41,13 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
     const [captionsVisible, setCaptionsVisible] = useState(false);
     const [emotesVisible, setEmotesVisible] = useState(false);
 
+    const {
+    isRecording,
+    startRecording,
+    stopRecording
+    } = useScreenRecording();
+
     // 상태 변경을 위한 핸들러 함수들
-    // const handleMicToggle = () => setMicOn((prev) => !prev);
-    // const handleVideoToggle = () => setVideoOn((prev) => !prev);
     const handleMicToggle = () => {
         setMicOn((prev) => {
             const newMicState = !prev;
@@ -69,7 +73,15 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
     };
 
     const handleScreenSharingToggle = () => setScreenSharing((prev) => !prev);
-    const handleRecordingToggle = () => setRecording((prev) => !prev);
+    // const handleRecordingToggle = () => setRecording((prev) => !prev);
+    const handleRecordingToggle = () => {
+        setRecording((prev) => !prev);
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    };
     const handleCaptionsToggle = () => setCaptionsVisible((prev) => !prev);
     const handleChatToggle = () => setChatVisible((prev) => !prev);
     const handleParticipantsToggle = () => setParticipantsVisible((prev) => !prev);
