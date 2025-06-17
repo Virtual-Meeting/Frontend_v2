@@ -9,16 +9,19 @@ interface SidebarProps {
   participantsVisible: boolean;
   chatVisible: boolean;
   chatMessages: ChatMessage[];
+  systemMessages: SystemMessage[];
   currentUserSessionId: string;
   onSendMessage: (input: ChatMessageInput) => void;
+  roomId: string;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
     participants,
     participantsVisible, 
     chatVisible, 
-    chatMessages, onSendMessage,
-    currentUserSessionId
+    chatMessages, onSendMessage, systemMessages,
+    currentUserSessionId,
+    roomId
  }) => {
     const isOpen = participantsVisible || chatVisible;
 
@@ -26,13 +29,14 @@ const Sidebar: React.FC<SidebarProps> = ({
     <SidebarWrapper isOpen={isOpen}>
         {participantsVisible && (
             <ParticipantsArea>
-                <ParticipantsPanel participants={participants} participantsVisible={participantsVisible}/>
+                <ParticipantsPanel participants={participants} participantsVisible={participantsVisible} roomId={roomId} />
             </ParticipantsArea>
         )}
         {chatVisible && (
             <ChatArea>
                 <ChatPanel 
                     chatMessages={chatMessages}
+                    systemMessages={systemMessages}
                     participants={participants}
                     onSendMessage={onSendMessage}
                     participantsVisible={participantsVisible}

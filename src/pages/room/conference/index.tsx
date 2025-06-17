@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as kurentoUtils from 'kurento-utils';
 import Header from 'components/common/Header';
 import Participant from 'lib/webrtc/Participant';
@@ -16,8 +17,12 @@ import RecordingPermissionPopup from 'components/common/Recording/RecordingPermi
 // import { useScreenRecording } from 'lib/hooks/useRecording';
 
 type ConferenceProps = {
-  name: string;
-  roomId: string;
+    name: string;
+    roomId: string;
+    isVideoOn: boolean;
+    isAudioOn: boolean;
+    videoDeviceId?: string;
+    audioDeviceId?: string;
 };
 
 // User data 타입 정의
@@ -48,11 +53,18 @@ const iceServers = [
     }
 ];
 
-const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
+const Conference: React.FC<ConferenceProps> = ({ 
+        name,
+        roomId,
+        isVideoOn,
+        isAudioOn,
+        videoDeviceId,
+        audioDeviceId 
+    }) => {
 
     //CallControls에서 받는 값
-    const [micOn, setMicOn] = useState(true);
-    const [videoOn, setVideoOn] = useState(true);
+    const [micOn, setMicOn] = useState(isAudioOn);
+    const [videoOn, setVideoOn] = useState(isVideoOn);
 
     const [participantsVisible, setParticipantsVisible] = useState(false);
     const [chatVisible, setChatVisible] = useState(false);
@@ -114,6 +126,8 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
     const handleParticipantsToggle = () => setParticipantsVisible((prev) => !prev);
     const handleEmotesToggle = () => setEmotesVisible((prev) => !prev);
 
+    const navigate = useNavigate();
+
     // 녹화 리스트 팝업 열기/닫기
     const handleRecordingListToggle = () => {
         setRecordingListVisible(prev => !prev);
@@ -140,12 +154,13 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
         sessionId: '',
         username: name,
         roomId: roomId,
-        audioOn: true,
-        videoOn: true,
+        audioOn: isAudioOn,
+        videoOn: isVideoOn,
     });
 
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [emojiMessages, setEmojiMessages] = useState<EmojiMessage[]>([]);
+    const [systemMessages, setSystemMessages] = useState<SystemMessage[]>([]);
     const hasSidebar = chatVisible || participantsVisible;
 
     useEffect(()=>{
@@ -158,21 +173,42 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                 eventId: 'joinRoom',
                 username: name,
                 roomId: roomId,
-                audioOn: true,     // 오디오 상태 값
-                videoOn: true,     // 비디오 상태 값
+                audioOn: isAudioOn,     // 오디오 상태 값
+                videoOn: isVideoOn,     // 비디오 상태 값
             }:{
                 eventId: 'createRoom',
                 username: name,
-                audioOn: true,
-                videoOn: true,
+                audioOn: isAudioOn,
+                videoOn: isVideoOn,
             }
 
             ws.current.send(JSON.stringify(message));
         };
 
+        // ✅ 브라우저 닫기/새로고침 시 exitRoom 전송
+        const handleBeforeUnload = () => {
+            if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+                const exitMessage = {
+                    eventId: 'exitRoom',
+                    username: name,
+                    roomId: roomId,
+                };
+                ws.current.send(JSON.stringify(exitMessage));
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
         ws.current.onmessage = (message) => {
             let parsedMessage = JSON.parse(message.data);
             console.info('Received message: ' + message.data);
+
+            // 에러 메시지 처리
+            if (parsedMessage.type === "ERROR" && parsedMessage.message?.includes("존재하지 않는 방입니다")) {
+                alert(parsedMessage.message);
+                navigate('/');  // useNavigate() 훅으로 이동하세요
+                return; // 이후 처리 중단
+            }
 
             switch (parsedMessage.action) {
                 case 'roomCreated':
@@ -355,6 +391,12 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
             ...prevData,
             sessionId: msg.sessionId,
         }));
+
+        if (msg.roomId) {
+            addSystemMessage(`📢 현재 방 코드: ${msg.roomId}`);
+        } else if (userData.roomId) {
+            addSystemMessage(`📢 현재 방 코드: ${userData.roomId}`);
+        }
         
 
         if (!videoRefs.current[msg.sessionId]) {
@@ -597,6 +639,15 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
         }
     };
 
+    const addSystemMessage = (content: string) => {
+        setSystemMessages(prev => [
+            ...prev,
+            {
+            content,
+            timestamp: Date.now(),
+            },
+        ]);
+    };
 
     const handleChatMessage = (
         data: {
@@ -779,9 +830,11 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
             participants={Object.values(participants)} 
             participantsVisible={participantsVisible}
             chatVisible={chatVisible} 
+            systemMessages={systemMessages}
             chatMessages={chatMessages}
             currentUserSessionId={userData.sessionId}
             onSendMessage={sendChatMessage}
+            roomId={userData.roomId}
         />
         {emotesVisible && (
             <EmojiPicker
@@ -805,7 +858,7 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                 hasSidebar={hasSidebar}
             />
         )}
-        
+
         {/* 녹화본 리스트 팝업 */}
         {recordingListVisible && (
         <ListPopup
@@ -826,13 +879,22 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                     return;
                     }
 
+                    // 새로운 창 열기
+                    const downloadWindow = window.open('', '_blank');
+                    if (!downloadWindow) {
+                    alert('새로운 창을 열 수 없습니다.');
+                    return;
+                    }
+
                     // 다운로드 링크 생성 및 클릭
                     const a = document.createElement('a');
                     a.href = url;
                     a.download = fileName;
-                    document.body.appendChild(a);
+                    downloadWindow.document.body.appendChild(a);
                     a.click();
-                    document.body.removeChild(a);
+
+                    // 창이 닫히도록 설정
+                    downloadWindow.close();
                     closeRecordingList();
                 } catch (error) {
                     console.error('다운로드 중 오류 발생:', error);
@@ -849,6 +911,7 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
             popupLeft={45}
         />
         )}
+
         {recordingPopupVisible && (
             <RecordingPermissionPopup 
                 username={participants[pendingSessionId]?.username || '알 수 없는 사용자'} 

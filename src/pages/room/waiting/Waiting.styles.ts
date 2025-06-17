@@ -23,7 +23,14 @@ export const RoomActionWrapper = styled.div`
     display: flex;
     justify-content: center;
     align-items: center;
-    flex:1.5;
+    flex-direction: column;
+    
+
+    > div:first-child {
+        display:flex;
+        flex:2;
+        margin-bottom: ${({ theme }) => theme.spacings.lg};
+    }
 `;
 
 export const InputWrapper = styled.div`
@@ -33,14 +40,18 @@ export const InputWrapper = styled.div`
     flex-direction: column;
     gap: ${({ theme }) => theme.spacings.md};
     width: 80%;
+
 `;
 
 export const LogoImage = styled(Logo)`
-  width: 10rem;
-  height: auto;
+    width: 10rem;
+    height: auto;
 `;
 
 export const PreviewWapper = styled.div`
+    display: flex;
+    justify-content: center;
+    align-items: center;
     flex:2.5;
     width:100%;
     height:100%;
