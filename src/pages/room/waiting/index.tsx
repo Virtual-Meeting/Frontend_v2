@@ -1,51 +1,89 @@
-import React, { useState } from 'react';
+import React, {useState, useEffect } from 'react';
+import { useLocation, useParams  } from 'react-router-dom';
 import Header from 'components/common/Header';
-import Button from 'components/common/Button';
-import Input from 'components/common/Input';
-import { Wrapper, WaitingWrapper, JoinWrapper, PreviewWapper, InputWrapper, LogoImage } from './Waiting.styles';
+import JoinRoom from './JoinRoom';
+import CreateRoom from './CreateRoom';
+import VideoPreviewPanel from './VideoPreviewPanel';
+import DeviceSettingsPanel from './DeviceSettingsPanel';
+import { Wrapper, WaitingWrapper, RoomActionWrapper, PreviewWapper } from './Waiting.styles';
 
 type Props = {
-    isRoom: (name: string, roomId: string) => void;
-}
+  isRoom: (name: string, roomId: string, isVideoOn: boolean, isAudioOn: boolean, videoDeviceId?: string, audioDeviceId?: string) => void;
+};
 
+const Waiting: React.FC<Props> = ({ isRoom }) => {
+    const location = useLocation();
+    const { roomId: paramRoomId } = useParams<{ roomId: string }>();
+    const [roomId, setRoomId] = useState(paramRoomId || '');
+    const action = location.state?.action;
 
-const Waiting: React.FC<Props> = ({isRoom}) => {
-    const [name, setName] = useState('');
-    const [roomId, setRoomId] = useState('');
+    // 이름과 방 코드 상태 관리
+    const [username, setUsername] = useState('');
 
-    const handleJoin = () => {
-        if (!name.trim()) {
-            alert('이름을 입력해주세요.');
-            return;
+    // DeviceSettingsPanel에서 받아온 설정을 상태로 관리
+    const [settings, setSettings] = useState<{
+            isVideoOn: boolean;
+            isAudioOn: boolean;
+            videoDeviceId?: string;
+            audioDeviceId?: string;
+        }>({
+            isVideoOn: true,
+            isAudioOn: true,
+            videoDeviceId: '',
+            audioDeviceId: '',
+        });
+    useEffect(() => {
+        if (paramRoomId) {
+            setRoomId(paramRoomId);
         }
-        
-        isRoom(name, roomId);
-    };
+    }, [paramRoomId]);
 
-    return(
-        <Wrapper>
-            <Header/>
-            <WaitingWrapper>
-                <JoinWrapper>
-                    <InputWrapper>
-                        <LogoImage />
-                        <Input
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder="이름을 입력하세요"
-                        />
-                        <Input
-                            value={roomId}
-                            onChange={(e) => setRoomId(e.target.value)}
-                            placeholder="방 코드를 입력하세요"
-                        />
-                        <Button onClick={handleJoin}>방 참가</Button>
-                    </InputWrapper>
-                </JoinWrapper>
-                <PreviewWapper></PreviewWapper>
-            </WaitingWrapper>
-        </Wrapper>
+    return (
+    <Wrapper>
+        <Header />
+        <WaitingWrapper>
+        <RoomActionWrapper>
+            {action === 'create' ? (
+            <CreateRoom 
+                name={username}
+                onNameChange={setUsername}
+                onRoomIdChange={setRoomId}
+                roomId={roomId}
+                settings={settings}
+                onCreate={(name, roomId) =>
+                    isRoom(name, roomId, settings.isVideoOn, settings.isAudioOn, settings.videoDeviceId, settings.audioDeviceId)
+                } />
+            ) : (
+            <JoinRoom
+                name={username}
+                onNameChange={setUsername}
+                onRoomIdChange={setRoomId}
+                roomId={roomId}
+                settings={settings}
+                onJoin={(name, roomId) =>
+                    isRoom(name, roomId, settings.isVideoOn, settings.isAudioOn, settings.videoDeviceId, settings.audioDeviceId)
+                } />
+            )}
+            <DeviceSettingsPanel
+                onChange={(settings) => setSettings(settings)}
+            />
+        </RoomActionWrapper>
+        <PreviewWapper>
+          <VideoPreviewPanel
+            username={username}
+            isVideoOn={settings.isVideoOn}
+            isAudioOn={settings.isAudioOn}
+
+            // videoDeviceId, audioDeviceId는 VideoPreviewPanel에서 스트림 설정에 활용
+            videoDeviceId={settings.videoDeviceId}
+            audioDeviceId={settings.audioDeviceId}
+          />
+
+          
+        </PreviewWapper>
+        </WaitingWrapper>
+    </Wrapper>
     );
-}
+};
 
 export default Waiting;

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as kurentoUtils from 'kurento-utils';
 import Header from 'components/common/Header';
 import Participant from 'lib/webrtc/Participant';
@@ -10,11 +11,18 @@ import { ChatMessage, ChatMessageInput } from 'types/chat';
 import { EmojiMessage } from 'types/emoji';
 import EmojiPicker from 'components/common/EmojiPicker';
 import ChangeNameForm from 'components/common/UserSettings/ChangeNameForm';
-import { useScreenRecording } from 'lib/hooks/useRecording';
+import RecordingStatusPopup from 'components/common/Recording/RecordingStatusPopup';
+import ListPopup from 'components/common/ListPopup';
+import RecordingPermissionPopup from 'components/common/Recording/RecordingPermissionPopup';
+// import { useScreenRecording } from 'lib/hooks/useRecording';
 
 type ConferenceProps = {
-  name: string;
-  roomId: string;
+    name: string;
+    roomId: string;
+    isVideoOn: boolean;
+    isAudioOn: boolean;
+    videoDeviceId?: string;
+    audioDeviceId?: string;
 };
 
 // User data 타입 정의
@@ -26,66 +34,109 @@ interface UserData {
     videoOn: boolean;
 }
 
-const wsServerUrl = 'ws://localhost:8080';
+// const wsServerUrl = "wss://vmo.o-r.kr:8080";
+const wsServerUrl = "ws://localhost:8080";
 
-const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
+const iceServers = [
+    { urls: "stuns:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    {
+        urls: "turn:vmo.o-r.kr:3478",
+        username: "user",
+        credential: "1234abcd"
+    },
+    {
+        urls: "turns:vmo.o-r.kr:5349",
+        username: "user",
+        credential: "1234abcd"
+    }
+];
+
+const Conference: React.FC<ConferenceProps> = ({ 
+        name,
+        roomId,
+        isVideoOn,
+        isAudioOn,
+        videoDeviceId,
+        audioDeviceId 
+    }) => {
 
     //CallControls에서 받는 값
-    const [micOn, setMicOn] = useState(true);
-    const [videoOn, setVideoOn] = useState(true);
+    const [micOn, setMicOn] = useState(isAudioOn);
+    const [videoOn, setVideoOn] = useState(isVideoOn);
 
     const [participantsVisible, setParticipantsVisible] = useState(false);
     const [chatVisible, setChatVisible] = useState(false);
     const [screenSharing, setScreenSharing] = useState(false);
     const [recording, setRecording] = useState(false);
+    const [recordingPaused, setRecordingPaused] = useState(false);
+    const [recordingListVisible, setRecordingListVisible] = useState(false);
+    const [recordingPopupVisible, setRecordingPopupVisible] = useState(false);
     const [captionsVisible, setCaptionsVisible] = useState(false);
     const [emotesVisible, setEmotesVisible] = useState(false);
 
-    const {
-    isRecording,
-    startRecording,
-    stopRecording
-    } = useScreenRecording();
-
-    // 상태 변경을 위한 핸들러 함수들
     const handleMicToggle = () => {
-        setMicOn((prev) => {
-            const newMicState = !prev;
-            sendMessage({
+        const newMicState = !micOn;
+        setMicOn(newMicState);
+
+        sendMessage({
             eventId: 'audioStateChange',
-            audioOn: newMicState,
-            sessionId: userData.sessionId
-            });
-            return newMicState;
+            audioOn: newMicState
         });
     };
 
     const handleVideoToggle = () => {
-        setVideoOn((prev) => {
-            const newVideoState = !prev;
-            sendMessage({
+        const newVideoState = !videoOn;
+        setVideoOn(newVideoState);
+
+        sendMessage({
             eventId: 'videoStateChange',
-            videoOn: newVideoState,
-            sessionId: userData.sessionId
-            });
-            return newVideoState;
+            videoOn: newVideoState
         });
     };
 
     const handleScreenSharingToggle = () => setScreenSharing((prev) => !prev);
-    // const handleRecordingToggle = () => setRecording((prev) => !prev);
     const handleRecordingToggle = () => {
-        setRecording((prev) => !prev);
-        if (isRecording) {
-            stopRecording();
-        } else {
+        if(roomLeader.sessionId===userData.sessionId){   
             startRecording();
+        }else{
+            sendMessage({eventId:'requestRecordingPermission'});  
+        }
+
+        stopRecording();
+    };
+
+    const startRecording = () => {
+        if(!recording){
+            sendMessage({ eventId: 'startRecording' });
+            setRecording((prev) => !prev);
+            setRecordingPaused(false);
         }
     };
+
+    const stopRecording = () => {
+        if(recording) {
+            sendMessage({ eventId: 'stopRecording' });
+        }
+    }
+
     const handleCaptionsToggle = () => setCaptionsVisible((prev) => !prev);
     const handleChatToggle = () => setChatVisible((prev) => !prev);
     const handleParticipantsToggle = () => setParticipantsVisible((prev) => !prev);
     const handleEmotesToggle = () => setEmotesVisible((prev) => !prev);
+
+    const navigate = useNavigate();
+
+    // 녹화 리스트 팝업 열기/닫기
+    const handleRecordingListToggle = () => {
+        setRecordingListVisible(prev => !prev);
+    };
+
+    // 녹화 리스트 팝업 닫기
+    const closeRecordingList = () => {
+        setRecordingListVisible(false);
+    };
 
     const isJoin = roomId.trim().length > 0;
     const ws = useRef<WebSocket | null>(null);
@@ -95,17 +146,21 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
     const [participants, setParticipants] = useState<{ [sessionId: string]: Participant }>({});
     const participantsRef = useRef<{ [sessionId: string]: Participant }>({});
     const [roomLeader, setRoomLeader] = useState<{ sessionId: string; username: string }>({ sessionId: '', username: ''});
+    const [recordedFiles, setRecordedFiles] = useState<string[]>([]);
+    const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
+
 
     const [userData, setUserData] = useState<UserData>({
         sessionId: '',
         username: name,
         roomId: roomId,
-        audioOn: true,
-        videoOn: true,
+        audioOn: isAudioOn,
+        videoOn: isVideoOn,
     });
 
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [emojiMessages, setEmojiMessages] = useState<EmojiMessage[]>([]);
+    const [systemMessages, setSystemMessages] = useState<SystemMessage[]>([]);
     const hasSidebar = chatVisible || participantsVisible;
 
     useEffect(()=>{
@@ -118,21 +173,42 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                 eventId: 'joinRoom',
                 username: name,
                 roomId: roomId,
-                audioOn: true,     // 오디오 상태 값
-                videoOn: true,     // 비디오 상태 값
+                audioOn: isAudioOn,     // 오디오 상태 값
+                videoOn: isVideoOn,     // 비디오 상태 값
             }:{
                 eventId: 'createRoom',
                 username: name,
-                audioOn: true,
-                videoOn: true,
+                audioOn: isAudioOn,
+                videoOn: isVideoOn,
             }
 
             ws.current.send(JSON.stringify(message));
         };
 
+        // ✅ 브라우저 닫기/새로고침 시 exitRoom 전송
+        const handleBeforeUnload = () => {
+            if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+                const exitMessage = {
+                    eventId: 'exitRoom',
+                    username: name,
+                    roomId: roomId,
+                };
+                ws.current.send(JSON.stringify(exitMessage));
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+
         ws.current.onmessage = (message) => {
             let parsedMessage = JSON.parse(message.data);
             console.info('Received message: ' + message.data);
+
+            // 에러 메시지 처리
+            if (parsedMessage.type === "ERROR" && parsedMessage.message?.includes("존재하지 않는 방입니다")) {
+                alert(parsedMessage.message);
+                navigate('/');  // useNavigate() 훅으로 이동하세요
+                return; // 이후 처리 중단
+            }
 
             switch (parsedMessage.action) {
                 case 'roomCreated':
@@ -176,6 +252,33 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                     break;
                 case 'changeName': //이름 변경
                     handleUsernameChanged(parsedMessage);
+                    break;
+                
+                //녹화 기능
+                case 'startRecording': // 녹화 시작
+                    break;
+                case 'stopRecording': // 녹화 중지
+                    finalizeRecordingSession(parsedMessage.fileName);
+                    break;
+                // case 'saveRecording': // 녹화본 다운로드
+                //     break;
+                case 'pauseRecording': // 녹화 일시정지
+                    setRecordingPaused(true);
+                    break;
+                case 'resumeRecording': // 녹화 재개
+                    setRecordingPaused(false);
+                    break;
+                
+                //녹화 권한
+                case 'requestRecordingPermission':
+                    setPendingSessionId(parsedMessage.sessionId);
+                    setRecordingPopupVisible(true);
+                    break;
+                case 'grantRecordingPermission':
+                    startRecording();
+                    break;
+                case 'denyRecordingPermission':
+                    break;
                 default:
                     console.error('Unrecognized message', parsedMessage);
             }
@@ -230,6 +333,7 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
             if (!videoRefs.current[sender.sessionId]) {
                 videoRefs.current[sender.sessionId] = React.createRef<HTMLVideoElement>();
             }
+            console.log("videoRefs.current[sender.sessionId]",videoRefs.current[sender.sessionId]);
 
             participantsRef.current[sender.sessionId] = participant;
             setParticipants(prev => ({
@@ -248,6 +352,7 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
             }
 
             const options = {
+                configuration: { iceServers },
                 remoteVideo: videoElement,
                 onicecandidate: participant.onIceCandidate.bind(participant),
             };
@@ -260,7 +365,7 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
 
                 this.generateOffer(participant.offerToReceiveVideo.bind(participant));
             });
-        }, 100); // 💡 100ms 정도의 짧은 지연
+        }, 1000); // 💡 100ms 정도의 짧은 지연
     };
 
 
@@ -286,12 +391,19 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
             ...prevData,
             sessionId: msg.sessionId,
         }));
+
+        if (msg.roomId) {
+            addSystemMessage(`📢 현재 방 코드: ${msg.roomId}`);
+        } else if (userData.roomId) {
+            addSystemMessage(`📢 현재 방 코드: ${userData.roomId}`);
+        }
         
 
         if (!videoRefs.current[msg.sessionId]) {
             videoRefs.current[msg.sessionId] = React.createRef<HTMLVideoElement>();
         }
-
+        
+        console.log("videoRefs.current[msg.sessionId]",videoRefs.current[msg.sessionId]);
         const localVideoRef = videoRefs.current[msg.sessionId];
 
         // getUserMedia → WebRTC 연결
@@ -309,6 +421,7 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                 }
 
                 const options = {
+                    configuration: {iceServers: iceServers},
                     localVideo: stream,
                     mediaConstraints: { audio: true, video: true },
                     onicecandidate: participant.onIceCandidate.bind(participant),
@@ -342,23 +455,25 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
     }
 
     const parseParticipant = (participantInfo) => {
-        // participantInfo가 문자열이면 JSON 파싱 시도
+        // 문자열이면 JSON 파싱
         if (typeof participantInfo === 'string') {
             try {
-                const parsed = JSON.parse(participantInfo);
-                return {
-                    sessionId: parsed.sessionId,
-                    username: parsed.username,
-                    audioOn: parsed.audioOn === "true",
-                    videoOn: parsed.videoOn === "true"
-                };
+            const parsed = JSON.parse(participantInfo);
+            const result = {
+                sessionId: parsed.sessionId,
+                username: parsed.username,
+                audioOn: typeof parsed.audioOn === "string" ? parsed.audioOn === "true" : !!parsed.audioOn,
+                videoOn: typeof parsed.videoOn === "string" ? parsed.videoOn === "true" : !!parsed.videoOn,
+            };
+            console.log("✅ 파싱된 참가자:", result);
+            return result;
             } catch (e) {
-                console.error("❌ 문자열 파싱 실패:", participantInfo, e);
-                return null;
+            console.error("❌ 문자열 파싱 실패:", participantInfo, e);
+            return null;
             }
         }
-    
-        // 이미 객체이면 그대로 필드 꺼내기
+
+        // 객체면 그대로 처리
         return {
             sessionId: participantInfo.sessionId,
             username: participantInfo.username,
@@ -462,10 +577,10 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
 
 
 
-    const handleLeaderChanged = (data: { sessionId: string; username: string }) => {
+    const handleLeaderChanged = (data: { roomLeaderId: string; roomLeadername: string }) => {
         setRoomLeader({
-            sessionId: data.sessionId,
-            username: data.username,
+            sessionId: data.roomLeaderId,
+            username: data.roomLeadername,
         });
     };
 
@@ -524,6 +639,15 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
         }
     };
 
+    const addSystemMessage = (content: string) => {
+        setSystemMessages(prev => [
+            ...prev,
+            {
+            content,
+            timestamp: Date.now(),
+            },
+        ]);
+    };
 
     const handleChatMessage = (
         data: {
@@ -595,11 +719,25 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
             setEmojiMessages((prev) => prev.filter((m) => m !== emojiMessage));
         }, 3000);
     };
+
+    const finalizeRecordingSession = (fileName?: string) => {
+        setRecording(false);
+        setRecordingPaused(false);
+
+        if (fileName?.trim()) {
+            setRecordedFiles(prev => [...prev, fileName]);
+        }
+    };
     
     // 참가자 상태가 변경될 때마다 UI에 반영
     useEffect(() => {
         // 참가자가 추가되었을 때 화면에 비디오 업데이트
         console.log('Participants updated:', participants);
+        Object.values(participants).forEach((participant) => {
+            if (!videoRefs.current[participant.sessionId]) {
+                videoRefs.current[participant.sessionId] = React.createRef<HTMLVideoElement>();
+            }
+        });
     }, [participants]);
 
     // 마이크 상태 변경 시 오디오 트랙에 반영
@@ -638,11 +776,20 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                         sessionId={participant.sessionId} 
                         username={participant.username}  
                         ref={videoRefs.current[participant.sessionId]}
+                        mySessionId={userData.sessionId}
                         emojiName={
                             emojiMessages.find((msg) => msg.sessionId === participant.sessionId)?.emoji
                         }
                     />
                 ))}
+                {recording && (
+                    <RecordingStatusPopup
+                        isPaused={recordingPaused}
+                        onPause={() => sendMessage({ eventId: 'pauseRecording' })}
+                        onResume={() => sendMessage({ eventId: 'resumeRecording' })}
+                        onStop={() => sendMessage({ eventId: 'stopRecording' })}
+                    />
+                )}
                 
             </GalleryWrapper>
             <CallControls
@@ -653,6 +800,8 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                 screenSharing={screenSharing}
                 setScreenSharing={handleScreenSharingToggle}
                 recording={recording}
+                recordingListVisible={recordingListVisible}
+                setRecordingListVisible={handleRecordingListToggle}
                 setRecording={handleRecordingToggle}
                 captionsVisible={captionsVisible}
                 setCaptionsVisible={handleCaptionsToggle}
@@ -681,9 +830,11 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
             participants={Object.values(participants)} 
             participantsVisible={participantsVisible}
             chatVisible={chatVisible} 
+            systemMessages={systemMessages}
             chatMessages={chatMessages}
             currentUserSessionId={userData.sessionId}
             onSendMessage={sendChatMessage}
+            roomId={userData.roomId}
         />
         {emotesVisible && (
             <EmojiPicker
@@ -707,6 +858,82 @@ const Conference: React.FC<ConferenceProps> = ({ name, roomId }) => {
                 hasSidebar={hasSidebar}
             />
         )}
+
+        {/* 녹화본 리스트 팝업 */}
+        {recordingListVisible && (
+        <ListPopup
+            title="녹화본 다운로드"
+            items={recordedFiles}
+            renderItem={(item) => (
+            <span
+                onClick={async () => {
+                const fileName = `${item}`;
+                const encodedFileName = encodeURIComponent(fileName); // 🔒 안전한 URL 변환
+                const url = `https://vmo.o-r.kr:8080/recordings/${encodedFileName}`;
+
+                try {
+                    // HEAD 요청으로 파일 존재 확인
+                    const response = await fetch(url, { method: 'HEAD' });
+                    if (!response.ok) {
+                    alert('녹화 파일이 존재하지 않습니다.');
+                    return;
+                    }
+
+                    // 새로운 창 열기
+                    const downloadWindow = window.open('', '_blank');
+                    if (!downloadWindow) {
+                    alert('새로운 창을 열 수 없습니다.');
+                    return;
+                    }
+
+                    // 다운로드 링크 생성 및 클릭
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    downloadWindow.document.body.appendChild(a);
+                    a.click();
+
+                    // 창이 닫히도록 설정
+                    downloadWindow.close();
+                    closeRecordingList();
+                } catch (error) {
+                    console.error('다운로드 중 오류 발생:', error);
+                    alert('다운로드에 실패했습니다.');
+                }
+                }}
+                title="클릭해서 다운로드"
+            >
+                {item}
+            </span>
+            )}
+            onClose={closeRecordingList}
+            hasSidebar={hasSidebar}
+            popupLeft={45}
+        />
+        )}
+
+        {recordingPopupVisible && (
+            <RecordingPermissionPopup 
+                username={participants[pendingSessionId]?.username || '알 수 없는 사용자'} 
+
+                onGrant={() => {
+                    sendMessage({
+                        eventId: 'grantRecordingPermission',
+                        sessionId: pendingSessionId
+                    });
+                    setRecordingPopupVisible(false);
+                    setPendingSessionId(null);
+                }}
+
+                onDeny={() => {
+                    sendMessage({
+                        eventId: 'denyRecordingPermission',
+                        sessionId: pendingSessionId
+                    });
+                    setRecordingPopupVisible(false);
+                    setPendingSessionId(null);
+                }}
+            />)}
     </Wrapper>
     );
 };
