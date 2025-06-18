@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as kurentoUtils from 'kurento-utils';
+import fixWebmDuration from 'webm-duration-fix';
 import Header from 'components/common/Header';
 import Participant from 'lib/webrtc/Participant';
 import ParticipantVideo from 'components/common/Video/ParticipantVideo';
@@ -14,7 +15,9 @@ import ChangeNameForm from 'components/common/UserSettings/ChangeNameForm';
 import RecordingStatusPopup from 'components/common/Recording/RecordingStatusPopup';
 import ListPopup from 'components/common/ListPopup';
 import RecordingPermissionPopup from 'components/common/Recording/RecordingPermissionPopup';
+import RecordingConsentPopup from 'components/common/Recording/RecordingConsentPopup';
 // import { useScreenRecording } from 'lib/hooks/useRecording';
+import { useRecording } from 'lib/hooks/useRecording';
 
 type ConferenceProps = {
     name: string;
@@ -70,9 +73,10 @@ const Conference: React.FC<ConferenceProps> = ({
     const [chatVisible, setChatVisible] = useState(false);
     const [screenSharing, setScreenSharing] = useState(false);
     const [recording, setRecording] = useState(false);
-    const [recordingPaused, setRecordingPaused] = useState(false);
+    const [recordingPaused, setRecordingPaused] = useState(true);
     const [recordingListVisible, setRecordingListVisible] = useState(false);
     const [recordingPopupVisible, setRecordingPopupVisible] = useState(false);
+    const [recordingConsentPopupVisible, setRecordingConsentPopupVisible] = useState(false);
     const [captionsVisible, setCaptionsVisible] = useState(false);
     const [emotesVisible, setEmotesVisible] = useState(false);
 
@@ -111,7 +115,6 @@ const Conference: React.FC<ConferenceProps> = ({
         if(!recording){
             sendMessage({ eventId: 'startRecording' });
             setRecording((prev) => !prev);
-            setRecordingPaused(false);
         }
     };
 
@@ -146,8 +149,26 @@ const Conference: React.FC<ConferenceProps> = ({
     const [participants, setParticipants] = useState<{ [sessionId: string]: Participant }>({});
     const participantsRef = useRef<{ [sessionId: string]: Participant }>({});
     const [roomLeader, setRoomLeader] = useState<{ sessionId: string; username: string }>({ sessionId: '', username: ''});
-    const [recordedFiles, setRecordedFiles] = useState<string[]>([]);
+    const [recordedFiles, setRecordedFiles] = useState<RecordedFile[]>([]);
+    const [elapsed, setElapsed] = useState(0); //녹화 시간 저장
     const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
+
+    //프론트 녹화 함수들
+    const { start, stop, pause, resume } = useRecording({
+        onStop: async (blob) => {
+            const fixedBlob = await fixWebmDuration(blob);
+            const url = URL.createObjectURL(fixedBlob);
+            const fileName = getFileName();
+            setRecordedFiles(prev => [...prev, { url, fileName, duration: elapsed }]);
+            setElapsed(0);
+        }
+    });
+
+    //녹화본 이름
+    const getFileName = () => {
+        const now = new Date();
+        return `recording_${now.toISOString().replace(/[:.]/g, '-')}.webm`;
+    };
 
 
     const [userData, setUserData] = useState<UserData>({
@@ -256,16 +277,25 @@ const Conference: React.FC<ConferenceProps> = ({
                 
                 //녹화 기능
                 case 'startRecording': // 녹화 시작
+                    sendMessage({ eventId: 'confirmRecordingConsent' });
+                    start().then(() => {
+                        setRecordingPaused(false); // 타이머 이제 시작 가능
+                    }).catch((err) => {
+                        console.error('녹화 시작 실패:', err);
+                    });
                     break;
                 case 'stopRecording': // 녹화 중지
-                    finalizeRecordingSession(parsedMessage.fileName);
+                    stop();
+                    finalizeRecordingSession();
                     break;
                 // case 'saveRecording': // 녹화본 다운로드
                 //     break;
                 case 'pauseRecording': // 녹화 일시정지
+                    pause();
                     setRecordingPaused(true);
                     break;
                 case 'resumeRecording': // 녹화 재개
+                    resume();
                     setRecordingPaused(false);
                     break;
                 
@@ -278,6 +308,11 @@ const Conference: React.FC<ConferenceProps> = ({
                     startRecording();
                     break;
                 case 'denyRecordingPermission':
+                    break;
+                
+                //녹화 동의
+                case 'confirmRecordingConsent':
+                    setRecordingConsentPopupVisible(true);
                     break;
                 default:
                     console.error('Unrecognized message', parsedMessage);
@@ -542,6 +577,7 @@ const Conference: React.FC<ConferenceProps> = ({
         };
         
         sendMessage(message);
+        navigate('/');
     }
 
     const userLeft = (request: { sessionId: string }) => {
@@ -720,13 +756,13 @@ const Conference: React.FC<ConferenceProps> = ({
         }, 3000);
     };
 
-    const finalizeRecordingSession = (fileName?: string) => {
+    const finalizeRecordingSession = (/*fileName?: string*/) => {
         setRecording(false);
         setRecordingPaused(false);
 
-        if (fileName?.trim()) {
-            setRecordedFiles(prev => [...prev, fileName]);
-        }
+        // if (fileName?.trim()) {
+        //     setRecordedFiles(prev => [...prev, fileName]);
+        // }
     };
     
     // 참가자 상태가 변경될 때마다 UI에 반영
@@ -785,12 +821,13 @@ const Conference: React.FC<ConferenceProps> = ({
                 {recording && (
                     <RecordingStatusPopup
                         isPaused={recordingPaused}
+                        elapsed={elapsed}
+                        setElapsed={setElapsed}
                         onPause={() => sendMessage({ eventId: 'pauseRecording' })}
                         onResume={() => sendMessage({ eventId: 'resumeRecording' })}
                         onStop={() => sendMessage({ eventId: 'stopRecording' })}
                     />
-                )}
-                
+                )}               
             </GalleryWrapper>
             <CallControls
                 micOn={micOn}
@@ -860,7 +897,8 @@ const Conference: React.FC<ConferenceProps> = ({
         )}
 
         {/* 녹화본 리스트 팝업 */}
-        {recordingListVisible && (
+        {/* 백엔드에서 녹화본 리스트를 받을 경우 */}
+        {/* {recordingListVisible && (
         <ListPopup
             title="녹화본 다운로드"
             items={recordedFiles}
@@ -910,6 +948,31 @@ const Conference: React.FC<ConferenceProps> = ({
             hasSidebar={hasSidebar}
             popupLeft={45}
         />
+        )} */}
+
+        {recordingListVisible && (
+        <ListPopup
+            title="녹화본 다운로드"
+            items={recordedFiles}
+            renderItem={(item) => (
+            <span
+                onClick={() => {
+                const a = document.createElement('a');
+                a.href = item.url;               // url로 접근
+                a.download = item.fileName;     // 파일 이름으로 다운로드
+                a.click();
+                closeRecordingList();
+                }}
+                title="클릭해서 다운로드"
+                style={{ cursor: 'pointer' }}
+            >
+                {item.fileName}  {/* 사용자에게 보여줄 파일명 */}
+            </span>
+            )}
+            onClose={closeRecordingList}
+            hasSidebar={hasSidebar}
+            popupLeft={45}
+        />
         )}
 
         {recordingPopupVisible && (
@@ -933,7 +996,19 @@ const Conference: React.FC<ConferenceProps> = ({
                     setRecordingPopupVisible(false);
                     setPendingSessionId(null);
                 }}
-            />)}
+        />)}
+        {recordingConsentPopupVisible && (
+            <RecordingConsentPopup
+                onConfirmConsent={()=>{
+                    setRecordingConsentPopupVisible(false);
+                }}
+
+                onDeclineConsent={()=>{
+                    setRecordingConsentPopupVisible(false);
+                    exitRoom();
+                }}
+            />
+        )}
     </Wrapper>
     );
 };
