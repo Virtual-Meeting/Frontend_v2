@@ -69,6 +69,8 @@ const Conference: React.FC<ConferenceProps> = ({
     const [micOn, setMicOn] = useState(isAudioOn);
     const [videoOn, setVideoOn] = useState(isVideoOn);
 
+    const micOnRef = useRef(micOn);
+
     const [participantsVisible, setParticipantsVisible] = useState(false);
     const [chatVisible, setChatVisible] = useState(false);
     const [screenSharing, setScreenSharing] = useState(false);
@@ -154,7 +156,7 @@ const Conference: React.FC<ConferenceProps> = ({
     const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
 
     //프론트 녹화 함수들
-    const { start, stop, pause, resume } = useRecording({
+    const { start, stop, pause, resume, setMicEnabled } = useRecording({
         onStop: async (blob) => {
             const fixedBlob = await fixWebmDuration(blob);
             const url = URL.createObjectURL(fixedBlob);
@@ -278,7 +280,7 @@ const Conference: React.FC<ConferenceProps> = ({
                 //녹화 기능
                 case 'startRecording': // 녹화 시작
                     sendMessage({ eventId: 'confirmRecordingConsent' });
-                    start().then(() => {
+                    start(micOnRef.current).then(() => {
                         setRecordingPaused(false); // 타이머 이제 시작 가능
                     }).catch((err) => {
                         console.error('녹화 시작 실패:', err);
@@ -782,6 +784,8 @@ const Conference: React.FC<ConferenceProps> = ({
         if (stream) {
             stream.getAudioTracks().forEach(track => {
                 track.enabled = micOn;
+                micOnRef.current = micOn;
+                setMicEnabled(micOnRef.current);
                 console.log(`🎤 마이크 상태 변경: ${micOn}`);
             });
         }

@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useRef} from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   PopupContainer,
   PopupHeader,
@@ -26,12 +26,17 @@ const RecordingStatusPopup: React.FC<RecordingStatusPopupProps> = ({
   onStop
 }) => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const startTimeRef = useRef<number | null>(null); // ⏱️ 기준 시간 저장
 
-  const startTimer = () => {
-    timerRef.current = setInterval(() => {
-      setElapsed((prev) => prev + 1);
-    }, 1000);
-  }
+const startTimer = () => {
+  timerRef.current = setInterval(() => {
+    if (startTimeRef.current !== null) {
+      const diff = Math.floor((Date.now() - startTimeRef.current) / 1000);
+      setElapsed(diff);
+    }
+  }, 1000);
+};
+
 
   const stopTimer = () => {
     if (timerRef.current) {
@@ -43,6 +48,7 @@ const RecordingStatusPopup: React.FC<RecordingStatusPopupProps> = ({
   const handleStop = () => {
     stopTimer();
     onStop();
+    startTimeRef.current = null; // ⛔ 녹화 종료 시 기준 초기화
   };
 
   const formatTime = (seconds: number) => {
@@ -55,33 +61,36 @@ const RecordingStatusPopup: React.FC<RecordingStatusPopupProps> = ({
   };
 
   useEffect(() => {
-    if (!isPaused) {
-      startTimer();
-    } else {
-      stopTimer();
-    }
+  if (!isPaused) {
+    startTimeRef.current = Date.now() - elapsed * 1000;
+    startTimer();
+  } else {
+    stopTimer();
+  }
 
-    return () => stopTimer(); // 언마운트/상태 변화 시 정리
-  }, [isPaused]);
+  return () => stopTimer();
+}, [isPaused]);
 
   return (
     <PopupContainer>
       <PopupHeader>
-        <RecordIcon/>
-        <span>{isPaused ? '일시 정지 중' : '녹화 중'} • {formatTime(elapsed)}</span>
+        <RecordIcon />
+        <span>
+          {isPaused ? '일시 정지 중' : '녹화 중'} • {formatTime(elapsed)}
+        </span>
       </PopupHeader>
       <PopupControls>
         {isPaused ? (
           <ControlButton onClick={onResume} aria-label="녹화 재개">
-            <Play/>
+            <Play />
           </ControlButton>
         ) : (
           <ControlButton onClick={onPause} aria-label="녹화 일시정지">
-            <Pause/>
+            <Pause />
           </ControlButton>
         )}
         <ControlButton onClick={handleStop} aria-label="녹화 중지">
-          <Stop/>
+          <Stop />
         </ControlButton>
       </PopupControls>
     </PopupContainer>

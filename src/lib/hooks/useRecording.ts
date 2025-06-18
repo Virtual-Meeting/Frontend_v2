@@ -9,19 +9,24 @@ export const useRecording = ({ onStop, onError }: UseRecordingOptions = {}) => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const micTrackRef = useRef<MediaStreamTrack | null>(null); // ✅ 마이크 트랙 참조
 
-  const start = async () => {
+  const start = async (micEnabled: boolean) => {
     try {
-      // 1. 화면 공유 (디스플레이) 스트림
+      // 1. 화면 공유 스트림
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: true, // 일부 브라우저는 탭/시스템 오디오도 지원
+        audio: true,
       });
 
       // 2. 마이크 스트림
       const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const micTrack = micStream.getAudioTracks()[0];
+      micTrack.enabled = micEnabled;
+      console.log("micEnabled",micEnabled);
+      micTrackRef.current = micTrack;
 
-      // 3. 화면 + 마이크 오디오 트랙 합치기
+      // 3. 스트림 합치기
       const combinedStream = new MediaStream([
         ...displayStream.getVideoTracks(),
         ...micStream.getAudioTracks(),
@@ -29,7 +34,6 @@ export const useRecording = ({ onStop, onError }: UseRecordingOptions = {}) => {
 
       // 4. 녹화 시작
       const recorder = new MediaRecorder(combinedStream);
-
       recorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
@@ -70,7 +74,15 @@ export const useRecording = ({ onStop, onError }: UseRecordingOptions = {}) => {
 
     mediaRecorderRef.current = null;
     streamRef.current = null;
+    micTrackRef.current = null;
   };
 
-  return { start, pause, resume, stop };
+  // ✅ 녹화 중 마이크 상태 토글용 함수
+  const setMicEnabled = (enabled: boolean) => {
+    if (micTrackRef.current) {
+      micTrackRef.current.enabled = enabled;
+    }
+  };
+
+  return { start, pause, resume, stop, setMicEnabled };
 };
