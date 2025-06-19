@@ -4,12 +4,14 @@ export const PanelWrapper = styled.div<{ participantsVisible: boolean }>`
   flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
   height: ${({ participantsVisible }) => participantsVisible ? '30vh' : '100vh'};
 `;
 
 export const ParticipantsList = styled.div`
   display: flex;
   flex-direction: column;
+  width:90%;
   padding: ${({ theme }) => theme.spacings.xs};
   gap: ${({ theme }) => theme.spacings.xs};
 `;

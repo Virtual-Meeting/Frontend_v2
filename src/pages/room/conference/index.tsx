@@ -184,6 +184,10 @@ const Conference: React.FC<ConferenceProps> = ({
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [emojiMessages, setEmojiMessages] = useState<EmojiMessage[]>([]);
     const [systemMessages, setSystemMessages] = useState<SystemMessage[]>([]);
+
+    //손든 사람 목록
+    const [raisedHandSessionIds, setRaisedHandSessionIds] = useState<string[]>([]);
+
     const hasSidebar = chatVisible || participantsVisible;
 
     useEffect(()=>{
@@ -272,6 +276,11 @@ const Conference: React.FC<ConferenceProps> = ({
                 //     break;
                 case 'sendPublicEmoji': //공개 이모지
                     handleEmojiMessage(parsedMessage);
+                    break;
+                case 'cancelHandRaise': //손들기 철회
+                    setRaisedHandSessionIds((prev) =>
+                        prev.filter((id) => id !== parsedMessage.sessionId)
+                    );
                     break;
                 case 'changeName': //이름 변경
                     handleUsernameChanged(parsedMessage);
@@ -737,6 +746,7 @@ const Conference: React.FC<ConferenceProps> = ({
 
     const handleEmojiMessage = (
         data: {
+            action?: string;
             senderSessionId: string;
             senderName: string;
             receiverSessionId: string;
@@ -751,6 +761,16 @@ const Conference: React.FC<ConferenceProps> = ({
         };
 
         setEmojiMessages((prev) => [...prev, emojiMessage]);
+
+        
+        if(data.emoji==='Raising_Hands') {
+            setRaisedHandSessionIds((prev) => {
+                if (!prev.includes(data.senderSessionId)) {
+                    return [...prev, data.senderSessionId];
+                }
+                return prev;
+            });
+        }
 
         // 3초 뒤 자동 제거 (애니메이션 처리 가능)
         setTimeout(() => {
@@ -876,6 +896,7 @@ const Conference: React.FC<ConferenceProps> = ({
             currentUserSessionId={userData.sessionId}
             onSendMessage={sendChatMessage}
             roomId={userData.roomId}
+            raisedHandSessionIds={raisedHandSessionIds}
         />
         {emotesVisible && (
             <EmojiPicker
@@ -887,12 +908,21 @@ const Conference: React.FC<ConferenceProps> = ({
                         console.warn("❗ 수신자가 없습니다. 이모지를 보내지 않습니다.");
                         return;
                     }
-                    const messagePayload = {
+
+                    let messagePayload;
+                    if (emojiName === 'Raising_Hands') {
+                        // 손 들기 이벤트 처리
+                        messagePayload = {
                         eventId: 'sendPublicEmoji',
-                        // senderSessionId: userData.sessionId,
                         receiverSessionId: receiver.sessionId,
                         emoji: emojiName,
-                    };
+                        };
+                    } else if (emojiName === 'Lowering_Hands') {
+                        // 손 내리기 이벤트 처리
+                        messagePayload = {
+                        eventId: 'cancelHandRaise', // 손 내리기 이벤트
+                        };
+                    }
                     
                     sendMessage(messagePayload);
                 }}

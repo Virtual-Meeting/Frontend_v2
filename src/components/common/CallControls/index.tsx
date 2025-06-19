@@ -107,12 +107,17 @@ const CallControls: React.FC<CallControlsProps> = ({
                         onToggle={setRecordingListVisible}
                         isCollapsed={recordingListVisible}/>
                 </ControlsToggleGroup>
-                <CallControlButton
-                    onClick={setCaptionsVisible}
-                    active={captionsVisible}
-                    icon={<ClosedCaptioningIcon />}
-                    label='Show Captions'
-                />
+
+                {/* 자막기능 off */}
+                {captionsVisible && (
+                    <CallControlButton
+                        onClick={setCaptionsVisible}
+                        active={captionsVisible}
+                        icon={<ClosedCaptioningIcon />}
+                        label='Show Captions'
+                    />
+                )}
+                
                 <CallControlButton
                     onClick={setEmotesVisible}
                     active={emotesVisible}

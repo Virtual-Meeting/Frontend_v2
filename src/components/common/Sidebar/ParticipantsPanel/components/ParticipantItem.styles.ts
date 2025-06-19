@@ -35,4 +35,9 @@ export const StatusIcons = styled.div`
   display: flex;
   gap: 0.5rem;
   color: ${({ theme }) => theme.colors.text.default};
+  
+  svg{
+    width:1rem;
+    height:1rem;
+  }
 `;

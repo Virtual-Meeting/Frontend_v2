@@ -13,13 +13,14 @@ interface SidebarProps {
   currentUserSessionId: string;
   onSendMessage: (input: ChatMessageInput) => void;
   roomId: string;
+  raisedHandSessionIds: string[]; 
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
     participants,
     participantsVisible, 
     chatVisible, 
-    chatMessages, onSendMessage, systemMessages,
+    chatMessages, onSendMessage, systemMessages, raisedHandSessionIds,
     currentUserSessionId,
     roomId
  }) => {
@@ -29,7 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     <SidebarWrapper isOpen={isOpen}>
         {participantsVisible && (
             <ParticipantsArea>
-                <ParticipantsPanel participants={participants} participantsVisible={participantsVisible} roomId={roomId} />
+                <ParticipantsPanel participants={participants} participantsVisible={participantsVisible} roomId={roomId} raisedHandSessionIds={raisedHandSessionIds} currentUserSessionId={currentUserSessionId} />
             </ParticipantsArea>
         )}
         {chatVisible && (
