@@ -46,6 +46,7 @@ const ParticipantsPanel: React.FC<Props> = ({
         {sortedParticipants.map((participant) => (
           <ParticipantItem 
             key={participant.sessionId} 
+            isCurrentUser={participant.sessionId === currentUserSessionId}
             participant={participant} 
             isHandRaised={raisedHandSessionIds.includes(participant.sessionId)}
           />

@@ -12,6 +12,11 @@ export const ItemWrapper = styled.div`
     background-color: ${({ theme }) => theme.colors.point};
     cursor: pointer;
   }
+  
+  svg{
+    width:1rem;
+    height:1rem;
+  }
 `;
 
 export const Avatar = styled.div`
@@ -29,15 +34,16 @@ export const Avatar = styled.div`
 
 export const Username = styled.span`
   flex: 1;
+  display:flex;
+  align-items: center;
+  gap:${({theme})=>theme.spacings.xs};
+  span{
+    color:${({theme})=>theme.colors.text.muted};
+  }
 `;
 
 export const StatusIcons = styled.div`
   display: flex;
   gap: 0.5rem;
   color: ${({ theme }) => theme.colors.text.default};
-  
-  svg{
-    width:1rem;
-    height:1rem;
-  }
 `;
