@@ -19,11 +19,11 @@ export const ItemWrapper = styled.div`
   }
 `;
 
-export const Avatar = styled.div`
+export const Avatar = styled.div<{ bgColor: string }>`
   width: ${({theme})=>theme.spacings.lg};
   height: ${({theme})=>theme.spacings.lg};
   border-radius: ${({theme})=>theme.borders.radius.round};
-  background-color: ${({ theme }) => theme.colors.primary};
+  background-color: ${({ bgColor }) => bgColor || 'gray'};
   color: ${({theme})=>theme.colors.text.inverse};
   font-weight: ${({theme})=>theme.fontWeights.bold};
   display: flex;
@@ -37,6 +37,7 @@ export const Username = styled.span`
   display:flex;
   align-items: center;
   gap:${({theme})=>theme.spacings.xs};
+
   span{
     color:${({theme})=>theme.colors.text.muted};
   }

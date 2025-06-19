@@ -30,7 +30,13 @@ const Sidebar: React.FC<SidebarProps> = ({
     <SidebarWrapper isOpen={isOpen}>
         {participantsVisible && (
             <ParticipantsArea>
-                <ParticipantsPanel participants={participants} participantsVisible={participantsVisible} roomId={roomId} raisedHandSessionIds={raisedHandSessionIds} currentUserSessionId={currentUserSessionId} />
+                <ParticipantsPanel 
+                    participants={participants} 
+                    participantsVisible={participantsVisible && !chatVisible} 
+                    roomId={roomId} 
+                    raisedHandSessionIds={raisedHandSessionIds} 
+                    currentUserSessionId={currentUserSessionId} 
+                />
             </ParticipantsArea>
         )}
         {chatVisible && (
@@ -40,7 +46,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                     systemMessages={systemMessages}
                     participants={participants}
                     onSendMessage={onSendMessage}
-                    participantsVisible={participantsVisible}
+                    chatVisible={chatVisible && !participantsVisible}
                     currentUserSessionId={currentUserSessionId} 
                 />
             </ChatArea>
