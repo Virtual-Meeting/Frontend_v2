@@ -1,9 +1,10 @@
 import React from 'react';
-import { PanelWrapper, ParticipantsList } from './ParticipantsPanel.styles';
+import { PanelWrapper, ParticipantsList, ButtonWrapper } from './ParticipantsPanel.styles';
 import Participant from 'lib/webrtc/Participant';
 import ParticipantItem from './components/ParticipantItem'
 import ParticipantHeader from './components/ParticipantHeader';
 import CopyRoomUrlButton from 'components/common/CopyRoomUrlButton';
+import ChangeNameButton from 'components/common/ChangeNameButton';
 
 interface Props {
   participants: Participant[];
@@ -11,6 +12,8 @@ interface Props {
   roomId: string;
   currentUserSessionId: string;
   raisedHandSessionIds: string[];
+  changeNamePopupVisible: boolean;
+  setChangeNamePopupVisible: (visible: boolean) => void;
 }
 
 const ParticipantsPanel: React.FC<Props> = ({
@@ -19,6 +22,7 @@ const ParticipantsPanel: React.FC<Props> = ({
   roomId,
   currentUserSessionId,
   raisedHandSessionIds,
+  changeNamePopupVisible,setChangeNamePopupVisible
 }) => {
   // 현재 유저
   const currentUser = participants.find(p => p.sessionId === currentUserSessionId);
@@ -52,7 +56,10 @@ const ParticipantsPanel: React.FC<Props> = ({
           />
         ))}
       </ParticipantsList>
-      <CopyRoomUrlButton roomId={roomId} />
+      <ButtonWrapper>
+        <CopyRoomUrlButton roomId={roomId} />
+        <ChangeNameButton onClick={() => setChangeNamePopupVisible(true)} />
+      </ButtonWrapper>
     </PanelWrapper>
   );
 };

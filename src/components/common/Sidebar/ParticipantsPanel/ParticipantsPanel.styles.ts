@@ -27,3 +27,12 @@ export const ParticipantsList = styled.div`
     display: none; /* Chrome, Safari, Opera */
   }
 `;
+
+export const ButtonWrapper = styled.div`
+  width: 90%;
+  display: flex;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacings.xs};
+  margin-top: ${({ theme }) => theme.spacings.sm};
+  padding-bottom: ${({ theme }) => theme.spacings.sm};
+`;
