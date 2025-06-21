@@ -13,7 +13,7 @@ import {
 import emojiList from './emojiList';
 
 type EmojiPickerProps = {
-  onSelect: (emoji: string, receiver: { sessionId: string; username: string } | null) => void;
+  onSelect: (emoji: string) => void;
   onClose: () => void;
   participants: { sessionId: string; username: string }[];
   currentUserSessionId: string;
@@ -29,8 +29,8 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({ onSelect, onClose, participan
   const handleSelect = (emojiName: string) => {
     // const receiver = participants.find(p => p.sessionId === targetSessionId);
     // onSelect(emojiName, targetSessionId ? receiver ?? null : null);
-    const receiver = participants[0] ?? null;
-    onSelect(emojiName, receiver);
+    // const receiver = participants[0] ?? null;
+    onSelect(emojiName);
   };
 
   const handleToggleHand = () => {
