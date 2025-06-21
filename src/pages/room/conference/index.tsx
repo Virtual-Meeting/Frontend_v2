@@ -6,7 +6,7 @@ import Header from 'components/common/Header';
 import Participant from 'lib/webrtc/Participant';
 import ParticipantVideo from 'components/common/Video/ParticipantVideo';
 import CallControls from 'components/common/CallControls';
-import { Wrapper, GalleryWrapper, MainArea } from './Conference.styles';
+import { Wrapper, GalleryWrapper, MainArea, ParticipantVideoGroup } from './Conference.styles';
 import Sidebar from 'components/common/Sidebar';
 import { ChatMessage, ChatMessageInput } from 'types/chat';
 import { EmojiMessage } from 'types/emoji';
@@ -18,6 +18,8 @@ import RecordingPermissionPopup from 'components/common/Recording/RecordingPermi
 import RecordingConsentPopup from 'components/common/Recording/RecordingConsentPopup';
 // import { useScreenRecording } from 'lib/hooks/useRecording';
 import { useRecording } from 'lib/hooks/useRecording';
+import { useTopSpeaker } from 'lib/hooks/useTopSpeaker';
+import { useSortedSpeakers } from 'lib/hooks/useSortedSpeakers';
 
 type ConferenceProps = {
     name: string;
@@ -81,6 +83,30 @@ const Conference: React.FC<ConferenceProps> = ({
     const [recordingConsentPopupVisible, setRecordingConsentPopupVisible] = useState(false);
     const [captionsVisible, setCaptionsVisible] = useState(false);
     const [emotesVisible, setEmotesVisible] = useState(false);
+
+    //참가자 점수 저장
+    const [speakingScores, setSpeakingScores] = useState<{ [id: string]: number }>({});
+    const [firstSpokenTimestamps, setFirstSpokenTimestamps] = useState<{ [id: string]: number }>({});
+
+    const handleSpeakingScoreChange = (sessionId: string, score: number) => {
+        setSpeakingScores(prev => {
+            if (prev[sessionId] === score) {
+                return prev;
+            }
+            return { ...prev, [sessionId]: score };
+        });
+
+        setFirstSpokenTimestamps(prev => {
+            if (prev[sessionId] != null || score <= 0) return prev;
+            return { ...prev, [sessionId]: Date.now() };
+        });
+    };
+    const topSpeaker = useTopSpeaker(speakingScores);
+    const sortedSpeakerIds = useSortedSpeakers(speakingScores, firstSpokenTimestamps);
+
+    const mainSpeakerId = sortedSpeakerIds[0];
+    const subSpeakerIds = sortedSpeakerIds.slice(1);
+
 
     const handleMicToggle = () => {
         const newMicState = !micOn;
@@ -147,6 +173,10 @@ const Conference: React.FC<ConferenceProps> = ({
     const ws = useRef<WebSocket | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
     const videoRefs = useRef<{ [sessionId: string]: React.RefObject<HTMLVideoElement> }>({});
+    //미디어 스트림 관리
+    const [mediaStreams, setMediaStreams] = useState<{ [id: string]: MediaStream }>({});
+
+    
 
     const [participants, setParticipants] = useState<{ [sessionId: string]: Participant }>({});
     const participantsRef = useRef<{ [sessionId: string]: Participant }>({});
@@ -386,6 +416,11 @@ const Conference: React.FC<ConferenceProps> = ({
                 ...prev,
                 [sender.sessionId]: participant
             }));
+
+            setSpeakingScores(prev => ({
+                ...prev,
+                [sender.sessionId]: 0
+            }));
         }
 
         // 💡 렌더링 이후까지 기다렸다가 비디오 연결 시도
@@ -410,6 +445,17 @@ const Conference: React.FC<ConferenceProps> = ({
                 }
 
                 this.generateOffer(participant.offerToReceiveVideo.bind(participant));
+                participant.rtcPeer.peerConnection.addEventListener("track", (event) => {
+                console.log(`[Participant ${participant.sessionId}] 트랙 추가됨: ${event.track.kind}`);
+
+                const remoteStream = event.streams[0]; // 트랙이 포함된 MediaStream
+
+                const videoEl = videoRefs.current[participant.sessionId]?.current;
+                if (videoEl && !videoEl.srcObject) {
+                    videoEl.srcObject = remoteStream;
+                    console.log(`[Participant ${participant.sessionId}] video.srcObject에 remoteStream 할당됨`);
+                }
+                });
             });
         }, 1000); // 💡 100ms 정도의 짧은 지연
     };
@@ -431,6 +477,11 @@ const Conference: React.FC<ConferenceProps> = ({
         setParticipants(prev => ({
             ...prev,
             [msg.sessionId]: participant
+        }));
+
+        setSpeakingScores(prev => ({
+            ...prev,
+            [msg.sessionId]: 0
         }));
 
         setUserData((prevData) => ({
@@ -462,9 +513,20 @@ const Conference: React.FC<ConferenceProps> = ({
                 stream.getAudioTracks().forEach(track => (track.enabled = micOn));
                 stream.getVideoTracks().forEach(track => (track.enabled = videoOn));
 
-                if (localVideoRef.current) {
-                    localVideoRef.current.srcObject = stream;
-                }
+                // 비디오 엘리먼트가 렌더링되고 ref가 연결될 때까지 잠시 딜레이
+                setTimeout(() => {
+                    const localVideoEl = videoRefs.current[msg.sessionId]?.current;
+                    if (localVideoEl) {
+                        localVideoEl.srcObject = stream;
+                        console.log(`[Participant ${msg.sessionId}] video.srcObject set.`);
+                    } else {
+                        console.warn(`[Participant ${msg.sessionId}] video element not ready yet.`);
+                    }
+                }, 100); // 100ms 딜레이 (필요에 따라 조절)
+
+                // if (localVideoRef.current) {
+                //     localVideoRef.current.srcObject = stream;
+                // }
 
                 const options = {
                     configuration: {iceServers: iceServers},
@@ -616,6 +678,17 @@ const Conference: React.FC<ConferenceProps> = ({
             return updated;
         });
 
+        setSpeakingScores(prev => {
+            const updated = { ...prev };
+            delete updated[sessionId];
+            return updated;
+        });
+
+        setFirstSpokenTimestamps(prev => {
+            const updated = { ...prev };
+            delete updated[sessionId];
+            return updated;
+        });
         // 4. 방장이 나갔다면 콘솔 알림 (방장 변경은 서버에서 별도 이벤트로 처리 중)
         if (roomLeader.sessionId === sessionId) {
             console.log("⚠️ 방장이 퇴장했습니다. 서버에서 leaderChanged 이벤트가 오기를 대기 중...");
@@ -828,20 +901,51 @@ const Conference: React.FC<ConferenceProps> = ({
         <MainArea>
             <Header variant="compact" />
             <GalleryWrapper>
-                {Object.values(participants).map((participant) => (
-                    <ParticipantVideo 
-                        isVideoOn={participant.videoOn} 
-                        isAudioOn={participant.audioOn} 
-                        key={participant.sessionId} 
-                        sessionId={participant.sessionId} 
-                        username={participant.username}  
+                {/* {sortedSpeakerIds.map((sessionId) => {
+                    const participant = participants[sessionId];
+                    if (!participant) return null;
+
+                    return (
+                    <ParticipantVideo
+                        key={participant.sessionId}
+                        isVideoOn={participant.videoOn}
+                        isAudioOn={participant.audioOn}
+                        sessionId={participant.sessionId}
+                        username={participant.username}
                         ref={videoRefs.current[participant.sessionId]}
                         mySessionId={userData.sessionId}
                         emojiName={
-                            emojiMessages.find((msg) => msg.sessionId === participant.sessionId)?.emoji
+                        emojiMessages.find((msg) => msg.sessionId === participant.sessionId)?.emoji
+                        }
+                        onSpeakingScoreChange={(score) =>
+                            handleSpeakingScoreChange(participant.sessionId, score)
                         }
                     />
-                ))}
+                    );
+                })} */}
+                <ParticipantVideoGroup $cols={sortedSpeakerIds.length-1}>
+                {sortedSpeakerIds.map((sessionId, index) => {
+                    const participant = participants[sessionId];
+                    if (!participant) return null;
+
+                    const isMain = index === 0;
+
+                    return (
+                    <ParticipantVideo
+                        key={participant.sessionId}
+                        sessionId={participant.sessionId}
+                        username={participant.username}
+                        isVideoOn={participant.videoOn}
+                        isAudioOn={participant.audioOn}
+                        ref={videoRefs.current[sessionId]}
+                        mySessionId={userData.sessionId}
+                        emojiName={emojiMessages.find(msg => msg.sessionId === sessionId)?.emoji}
+                        onSpeakingScoreChange={(score) => handleSpeakingScoreChange(sessionId, score)}
+                        className={isMain ? 'main-video' : 'sub-video'} // ⬅️ 스타일 구분
+                    />
+                    );
+                })}
+                </ParticipantVideoGroup>
                 {recording && (
                     <RecordingStatusPopup
                         isPaused={recordingPaused}
@@ -903,24 +1007,24 @@ const Conference: React.FC<ConferenceProps> = ({
                 participants={Object.values(participants)}
                 currentUserSessionId={userData.sessionId}
                 onClose={() => setEmotesVisible(false)}
-                onSelect={(emojiName, receiver) => {
-                    if (!receiver) {
+                onSelect={(emojiName) => {
+                    if (!topSpeaker) {
                         console.warn("❗ 수신자가 없습니다. 이모지를 보내지 않습니다.");
                         return;
                     }
 
                     let messagePayload;
-                    if (emojiName === 'Raising_Hands') {
+                    // 손 내리기 이벤트 처리
+                    if (emojiName === 'Lowering_Hands') {
+                        messagePayload = {
+                        eventId: 'cancelHandRaise', // 손 내리기 이벤트
+                        };
+                    } else{
                         // 손 들기 이벤트 처리
                         messagePayload = {
                         eventId: 'sendPublicEmoji',
-                        receiverSessionId: receiver.sessionId,
+                        receiverSessionId: topSpeaker.id,
                         emoji: emojiName,
-                        };
-                    } else if (emojiName === 'Lowering_Hands') {
-                        // 손 내리기 이벤트 처리
-                        messagePayload = {
-                        eventId: 'cancelHandRaise', // 손 내리기 이벤트
                         };
                     }
                     
