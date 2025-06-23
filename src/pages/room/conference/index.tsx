@@ -21,6 +21,8 @@ import { useRecording } from 'lib/hooks/useRecording';
 import { useTopSpeaker } from 'lib/hooks/useTopSpeaker';
 import { useSortedSpeakers } from 'lib/hooks/useSortedSpeakers';
 import NameChangePopup from 'components/common/NameChangePopup';
+import AudioInputSelector from 'components/common/UserSettings/AudioInputSelector';
+import VideoInputSelector from 'components/common/UserSettings/VideoInputSelector';
 
 type ConferenceProps = {
     name: string;
@@ -82,14 +84,22 @@ const Conference: React.FC<ConferenceProps> = ({
     const [recordingListVisible, setRecordingListVisible] = useState(false);
     const [recordingPopupVisible, setRecordingPopupVisible] = useState(false);
     const [recordingConsentPopupVisible, setRecordingConsentPopupVisible] = useState(false);
+
     const [captionsVisible, setCaptionsVisible] = useState(false);
     const [emotesVisible, setEmotesVisible] = useState(false);
+    const [handRaised, setHandRaised] = useState(false);
     const [changeNamePopupVisible, setChangeNamePopupVisible] = useState(false);
+
+    const [micListVisible, setMicListVisible] = useState(false);
+    const [videoListVisible, setVideoListVisible] = useState(false);
 
     //참가자 점수 저장
     const [speakingScores, setSpeakingScores] = useState<{ [id: string]: number }>({});
     const [firstSpokenTimestamps, setFirstSpokenTimestamps] = useState<{ [id: string]: number }>({});
 
+    const handleMicListToggle = () => setMicListVisible(prev => !prev);
+  const handleVideoListToggle = () => setVideoListVisible(prev => !prev);
+  
     const handleSpeakingScoreChange = (sessionId: string, score: number) => {
         setSpeakingScores(prev => {
             if (prev[sessionId] === score) {
@@ -104,6 +114,7 @@ const Conference: React.FC<ConferenceProps> = ({
         });
     };
     const topSpeaker = useTopSpeaker(speakingScores);
+    const topSpeakerRef = useRef(topSpeaker);
     const sortedSpeakerIds = useSortedSpeakers(speakingScores, firstSpokenTimestamps);
 
     const mainSpeakerId = sortedSpeakerIds[0];
@@ -210,6 +221,66 @@ const Conference: React.FC<ConferenceProps> = ({
             setScreenSharing(false);
         }
     };
+
+    const replaceAudioTrack = async (newDeviceId: string) => {
+  const participant = participantsRef.current[userData.sessionId];
+  if (!participant?.rtcPeer) return;
+
+  const audioSender = participant.rtcPeer.peerConnection
+    .getSenders()
+    .find((s) => s.track?.kind === "audio");
+
+  if (!audioSender) return;
+
+  const newStream = await navigator.mediaDevices.getUserMedia({
+    audio: { deviceId: { exact: newDeviceId } }
+  });
+
+  const newAudioTrack = newStream.getAudioTracks()[0];
+  await audioSender.replaceTrack(newAudioTrack);
+
+  // 로컬 비디오 스트림에도 반영
+  const localStream = localStreamRef.current;
+  if (localStream) {
+    localStream.removeTrack(localStream.getAudioTracks()[0]);
+    localStream.addTrack(newAudioTrack);
+  }
+
+  // UI에서도 듣기 반영
+  const localVideoEl = videoRefs.current[userData.sessionId]?.current;
+  if (localVideoEl) {
+    localVideoEl.srcObject = localStream;
+  }
+};
+const replaceVideoTrack = async (newDeviceId: string) => {
+  const participant = participantsRef.current[userData.sessionId];
+  if (!participant?.rtcPeer) return;
+
+  const videoSender = participant.rtcPeer.peerConnection
+    .getSenders()
+    .find((s) => s.track?.kind === "video");
+
+  if (!videoSender) return;
+
+  const newStream = await navigator.mediaDevices.getUserMedia({
+    video: { deviceId: { exact: newDeviceId } }
+  });
+
+  const newVideoTrack = newStream.getVideoTracks()[0];
+  await videoSender.replaceTrack(newVideoTrack);
+
+  const localStream = localStreamRef.current;
+  if (localStream) {
+    localStream.removeTrack(localStream.getVideoTracks()[0]);
+    localStream.addTrack(newVideoTrack);
+  }
+
+  const localVideoEl = videoRefs.current[userData.sessionId]?.current;
+  if (localVideoEl) {
+    localVideoEl.srcObject = localStream;
+  }
+};
+
 
     const handleRecordingToggle = () => {
         if(roomLeader.sessionId===userData.sessionId){   
@@ -451,6 +522,10 @@ const Conference: React.FC<ConferenceProps> = ({
     useEffect(()=>{
         console.log("userData:",userData);
     },[userData]);
+
+    useEffect(() => {
+        topSpeakerRef.current = topSpeaker;
+    }, [topSpeaker]);
 
     const sendMessage = (message) => {
         let jsonMessage = JSON.stringify(message);
@@ -910,11 +985,13 @@ const Conference: React.FC<ConferenceProps> = ({
             from: data.senderName,
             to: data.receiverName,
             emoji: data.emoji,
-            sessionId: data.receiverSessionId,
+            // sessionId: data.receiverSessionId,
+            sessionId: topSpeakerRef.current?.id,
         };
 
-        setEmojiMessages((prev) => [...prev, emojiMessage]);
+        console.log(topSpeakerRef.current?.id);
 
+        setEmojiMessages((prev) => [...prev, emojiMessage]);
         
         if(data.emoji==='Raising_Hands') {
             setRaisedHandSessionIds((prev) => {
@@ -978,7 +1055,6 @@ const Conference: React.FC<ConferenceProps> = ({
             });
         }
     }, [videoOn]);
-
 
     return (
     <Wrapper>
@@ -1044,8 +1120,14 @@ const Conference: React.FC<ConferenceProps> = ({
             <CallControls
                 micOn={micOn}
                 setMicOn={handleMicToggle}
+                micListVisible={micListVisible}
+                setMicListVisible={handleMicListToggle}
+        
                 videoOn={videoOn}
                 setVideoOn={handleVideoToggle}
+                videoListVisible={videoListVisible}
+                setVideoListVisible={handleVideoListToggle}
+
                 screenSharing={screenSharing}
                 setScreenSharing={handleScreenSharingToggle}
                 recording={recording}
@@ -1076,6 +1158,7 @@ const Conference: React.FC<ConferenceProps> = ({
             }}
             onClose={()=>setChangeNamePopupVisible(false)}
         />)}
+
 
         {/* <ChangeNameForm
             currentName={userData.username}
@@ -1132,6 +1215,8 @@ const Conference: React.FC<ConferenceProps> = ({
                     sendMessage(messagePayload);
                 }}
                 hasSidebar={hasSidebar}
+                handRaised={handRaised}
+                setHandRaised={setHandRaised}
             />
         )}
 
@@ -1248,6 +1333,8 @@ const Conference: React.FC<ConferenceProps> = ({
                 }}
             />
         )}
+        {micListVisible&&(<AudioInputSelector onDeviceChange={replaceAudioTrack} />)}
+        {videoListVisible&&(<VideoInputSelector onDeviceChange={replaceVideoTrack} />)}
     </Wrapper>
     );
 };
