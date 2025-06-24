@@ -97,8 +97,19 @@ const Conference: React.FC<ConferenceProps> = ({
     const [speakingScores, setSpeakingScores] = useState<{ [id: string]: number }>({});
     const [firstSpokenTimestamps, setFirstSpokenTimestamps] = useState<{ [id: string]: number }>({});
 
-    const handleMicListToggle = () => setMicListVisible(prev => !prev);
-  const handleVideoListToggle = () => setVideoListVisible(prev => !prev);
+    const handleMicListToggle = () => {
+        setMicListVisible(prev => {
+            if (!prev) setVideoListVisible(false); // 켜질 때 다른 거 끔
+            return !prev;
+        })  ;
+    };
+
+    const handleVideoListToggle = () => {
+        setVideoListVisible(prev => {
+            if (!prev) setMicListVisible(false); // 켜질 때 다른 거 끔
+            return !prev;
+        });
+    };
   
     const handleSpeakingScoreChange = (sessionId: string, score: number) => {
         setSpeakingScores(prev => {
@@ -143,8 +154,14 @@ const Conference: React.FC<ConferenceProps> = ({
 
     // const handleScreenSharingToggle = () => setScreenSharing((prev) => !prev);
     const [videoTracks, setVideoTracks] = useState<{
-    [id: string]: { video: MediaStreamTrack; audio: MediaStreamTrack };
+        [id: string]: { video: MediaStreamTrack; audio: MediaStreamTrack };
     }>({});
+    
+
+    const [selectedMicId, setSelectedMicId] = useState<string | undefined>(audioDeviceId);
+    const [selectedVideoId, setSelectedVideoId] = useState<string | undefined>(videoDeviceId);
+
+    const displayStreamRef = useRef<MediaStream | null>(null); // 꼭 선언해 주세요
 
     const handleScreenSharingToggle = async () => {
         const participant = participantsRef.current[userData.sessionId];
@@ -157,65 +174,66 @@ const Conference: React.FC<ConferenceProps> = ({
         if (!videoSender || !audioSender) return;
 
         if (!screenSharing) {
-        try {
-            const displayStream = await navigator.mediaDevices.getDisplayMedia({
-            video: true,
-            audio: true,
-            });
+            try {
+                const displayStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                    audio: true,
+                });
 
-            const micStream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            });
+                const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-            const screenTrack = displayStream.getVideoTracks()[0];
-            const micTrack = micStream.getAudioTracks()[0];
+                micStream.getAudioTracks().forEach(track => {
+                    displayStream.addTrack(track);
+                });
 
-            // 기존 트랙을 먼저 저장
-            const prevVideoTrack = videoSender.track;
-            const prevAudioTrack = audioSender.track;
+                displayStreamRef.current = displayStream; // ✅ 저장
 
-            setVideoTracks(prev => ({
-            ...prev,
-            [userData.sessionId]: {
-                video: prevVideoTrack,
-                audio: prevAudioTrack,
+                const screenTrack = displayStream.getVideoTracks()[0];
+                const micTrack = micStream.getAudioTracks()[0];
+
+                const prevVideoTrack = videoSender.track;
+                const prevAudioTrack = audioSender.track;
+
+                setVideoTracks(prev => ({
+                    ...prev,
+                    [userData.sessionId]: {
+                        video: prevVideoTrack,
+                        audio: prevAudioTrack,
+                    }
+                }));
+
+                await videoSender.replaceTrack(screenTrack);
+                await audioSender.replaceTrack(micTrack);
+
+                const localVideoEl = videoRefs.current[userData.sessionId]?.current;
+                if (localVideoEl) localVideoEl.srcObject = displayStream;
+
+                setScreenSharing(true);
+
+                screenTrack.onended = () => {
+                    stopScreenSharing();
+                };
+            } catch (err) {
+                console.error("화면 공유 시작 오류:", err);
             }
-            }));
+        } else {
+            stopScreenSharing();
+        }
 
-            // 트랙 교체
-            await videoSender.replaceTrack(screenTrack);
-            await audioSender.replaceTrack(micTrack);
-
-            // 비디오 엘리먼트에 화면공유 스트림 할당
-            const localVideoEl = videoRefs.current[userData.sessionId]?.current;
-            if (localVideoEl) localVideoEl.srcObject = displayStream;
-
-            setScreenSharing(true);
-
-            screenTrack.onended = async () => {
+        async function stopScreenSharing() {
             const prevTracks = videoTracks[userData.sessionId];
             if (prevTracks?.video) await videoSender.replaceTrack(prevTracks.video);
             if (prevTracks?.audio) await audioSender.replaceTrack(prevTracks.audio);
 
+            const localVideoEl = videoRefs.current[userData.sessionId]?.current;
             if (localVideoEl && localStreamRef.current) {
                 localVideoEl.srcObject = localStreamRef.current;
             }
 
-            setScreenSharing(false);
-            };
-
-            } catch (err) {
-            console.error("화면 공유 시작 오류:", err);
-            }
-        } else {
-            // 🔁 원래 트랙 복구
-            const prevTracks = videoTracks[userData.sessionId];
-            if (prevTracks?.video) await videoSender.replaceTrack(prevTracks.video);
-            if (prevTracks?.audio) await audioSender.replaceTrack(prevTracks.audio);
-
-            const localVideoEl = videoRefs.current[userData.sessionId]?.current;
-            if (localVideoEl && localStreamRef.current) {
-            localVideoEl.srcObject = localStreamRef.current;
+            // ✅ displayStream이 살아 있으면 stop
+            if (displayStreamRef.current) {
+                displayStreamRef.current.getTracks().forEach(track => track.stop());
+                displayStreamRef.current = null;
             }
 
             setScreenSharing(false);
@@ -223,63 +241,75 @@ const Conference: React.FC<ConferenceProps> = ({
     };
 
     const replaceAudioTrack = async (newDeviceId: string) => {
-  const participant = participantsRef.current[userData.sessionId];
-  if (!participant?.rtcPeer) return;
+        const participant = participantsRef.current[userData.sessionId];
+        if (!participant?.rtcPeer) return;
 
-  const audioSender = participant.rtcPeer.peerConnection
-    .getSenders()
-    .find((s) => s.track?.kind === "audio");
+        const audioSender = participant.rtcPeer.peerConnection
+            .getSenders()
+            .find((s) => s.track?.kind === "audio");
 
-  if (!audioSender) return;
+        if (!audioSender) return;
 
-  const newStream = await navigator.mediaDevices.getUserMedia({
-    audio: { deviceId: { exact: newDeviceId } }
-  });
+        const newStream = await navigator.mediaDevices.getUserMedia({
+            audio: { deviceId: { exact: newDeviceId } }
+        });
 
-  const newAudioTrack = newStream.getAudioTracks()[0];
-  await audioSender.replaceTrack(newAudioTrack);
+        const newAudioTrack = newStream.getAudioTracks()[0];
+        await audioSender.replaceTrack(newAudioTrack);
 
-  // 로컬 비디오 스트림에도 반영
-  const localStream = localStreamRef.current;
-  if (localStream) {
-    localStream.removeTrack(localStream.getAudioTracks()[0]);
-    localStream.addTrack(newAudioTrack);
-  }
+        // 로컬 비디오 스트림에도 반영
+        const localStream = localStreamRef.current;
+        if (localStream) {
+            localStream.removeTrack(localStream.getAudioTracks()[0]);
+            localStream.addTrack(newAudioTrack);
+        }
 
-  // UI에서도 듣기 반영
-  const localVideoEl = videoRefs.current[userData.sessionId]?.current;
-  if (localVideoEl) {
-    localVideoEl.srcObject = localStream;
-  }
-};
-const replaceVideoTrack = async (newDeviceId: string) => {
-  const participant = participantsRef.current[userData.sessionId];
-  if (!participant?.rtcPeer) return;
+        // UI에서도 듣기 반영
+        const localVideoEl = videoRefs.current[userData.sessionId]?.current;
+        if (localVideoEl) {
+            localVideoEl.srcObject = localStream;
+        }
+    };
 
-  const videoSender = participant.rtcPeer.peerConnection
-    .getSenders()
-    .find((s) => s.track?.kind === "video");
+    const handleMicDeviceChange = (deviceId: string) => {
+        if (deviceId === selectedMicId) return; // 이미 선택된 장치면 무시
+        setSelectedMicId(deviceId);
+        replaceAudioTrack(deviceId); // 실제 트랙 교체 함수
+    };
+    const replaceVideoTrack = async (newDeviceId: string) => {
+        const participant = participantsRef.current[userData.sessionId];
+        if (!participant?.rtcPeer) return;
 
-  if (!videoSender) return;
+        const videoSender = participant.rtcPeer.peerConnection
+            .getSenders()
+            .find((s) => s.track?.kind === "video");
 
-  const newStream = await navigator.mediaDevices.getUserMedia({
-    video: { deviceId: { exact: newDeviceId } }
-  });
+        if (!videoSender) return;
 
-  const newVideoTrack = newStream.getVideoTracks()[0];
-  await videoSender.replaceTrack(newVideoTrack);
+        const newStream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: newDeviceId } }
+        });
 
-  const localStream = localStreamRef.current;
-  if (localStream) {
-    localStream.removeTrack(localStream.getVideoTracks()[0]);
-    localStream.addTrack(newVideoTrack);
-  }
+        const newVideoTrack = newStream.getVideoTracks()[0];
+        await videoSender.replaceTrack(newVideoTrack);
 
-  const localVideoEl = videoRefs.current[userData.sessionId]?.current;
-  if (localVideoEl) {
-    localVideoEl.srcObject = localStream;
-  }
-};
+        const localStream = localStreamRef.current;
+        if (localStream) {
+            localStream.removeTrack(localStream.getVideoTracks()[0]);
+            localStream.addTrack(newVideoTrack);
+        }
+
+        const localVideoEl = videoRefs.current[userData.sessionId]?.current;
+        if (localVideoEl) {
+            localVideoEl.srcObject = localStream;
+        }
+    };
+
+    const handleVideoDeviceChange = (deviceId: string) => {
+        if (deviceId === selectedVideoId) return; // 중복 방지
+        setSelectedVideoId(deviceId);
+        replaceVideoTrack(deviceId); // 트랙 교체 로직 호출
+    };
 
 
     const handleRecordingToggle = () => {
@@ -1333,8 +1363,18 @@ const replaceVideoTrack = async (newDeviceId: string) => {
                 }}
             />
         )}
-        {micListVisible&&(<AudioInputSelector onDeviceChange={replaceAudioTrack} />)}
-        {videoListVisible&&(<VideoInputSelector onDeviceChange={replaceVideoTrack} />)}
+        {micListVisible&&(
+            <AudioInputSelector
+                onDeviceChange={handleMicDeviceChange}
+                selectedDeviceId={selectedMicId}
+            />
+        )}
+        {videoListVisible&&(
+            <VideoInputSelector
+                onDeviceChange={handleVideoDeviceChange}
+                selectedDeviceId={selectedVideoId}
+            />
+        )}
     </Wrapper>
     );
 };

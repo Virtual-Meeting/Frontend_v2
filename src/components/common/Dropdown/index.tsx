@@ -8,36 +8,32 @@ interface DropdownOption {
 interface DropdownProps {
   options: DropdownOption[];
   onChange: (option: DropdownOption) => void;
+  value?: DropdownOption | null;  // <-- 추가
   placeholder?: string;
   labelKey?: string;
   valueKey?: string;
-  initialValue?: DropdownOption;
+  title?: string;
 }
 
 const Dropdown: React.FC<DropdownProps> = ({
   options,
   onChange,
+  value,
   placeholder = "선택하세요",
   labelKey = "label",
   valueKey = "value",
-  initialValue
+  title = "선택 항목",
 }) => {
-  const [selected, setSelected] = useState<DropdownOption | null>(initialValue ?? null);
   const [isHovered, setIsHovered] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const handleOptionClick = (option: DropdownOption) => {
-    setSelected(option);
-    onChange(option);
-  };
-
-  const getLabel = (option: DropdownOption | null) => {
+  const getLabel = (option: DropdownOption | null | undefined) => {
     if (!option) return placeholder;
     return option[labelKey] ?? String(option);
   };
 
   const isSelected = (option: DropdownOption) =>
-    selected && selected[valueKey] === option[valueKey];
+    value && value[valueKey] === option[valueKey];
 
   return (
     <DropdownContainer
@@ -46,14 +42,14 @@ const Dropdown: React.FC<DropdownProps> = ({
       onMouseLeave={() => setIsHovered(false)}
     >
       <Selected $isHovered={isHovered}>
-        녹음 장치 <br/>
-      <span>{getLabel(selected)}</span>
+        {title} <br/>
+        <span>{getLabel(value)}</span>
       </Selected>
       <OptionsList $isVisible={isHovered}>
         {options.map(option => (
           <Option
             key={option[valueKey] ?? option[labelKey] ?? option}
-            onClick={() => handleOptionClick(option)}
+            onClick={() => onChange(option)}
           >
             <input
               type="radio"

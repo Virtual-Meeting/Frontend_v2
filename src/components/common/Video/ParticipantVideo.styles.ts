@@ -15,15 +15,25 @@ export const StyledVideo = styled.video`
   object-fit: cover;
 `;
 
-export const Placeholder = styled.div`
+export const Placeholder = styled.div<{ bgColor?: string }>`
   width: 100%;
   height: 100%;
   background-color: #444;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 2rem;
   color: white;
+
+  span{
+    display: inline-flex;
+    background-color:${({ bgColor }) => bgColor || '#444'};
+    aspect-ratio: 1 / 1;
+    width: 20%;
+    border-radius:${({theme})=>theme.borders.radius.round};
+    align-items: center;
+    justify-content: center;
+    // font-size:${({theme})=>theme.fontSizes.lg};
+  }
 `;
 
 export const UsernameOverlay = styled.div`

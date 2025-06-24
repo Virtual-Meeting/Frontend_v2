@@ -15,6 +15,8 @@ import { MicOffIcon } from 'assets/icons/white';
 import useVoiceActivityDetection from 'lib/hooks/useVoiceActivityDetection';
 import useSpeakingScore from 'lib/hooks/useSpeakingScore';
 
+import { getUserColor } from 'lib/color/colorManager';
+
 type Props = {
   sessionId: string;
   username: string;
@@ -82,7 +84,9 @@ const ParticipantVideo = forwardRef<HTMLVideoElement, Props>(
           />
           
           {!isVideoOn && (
-            <Placeholder>{username.charAt(0).toUpperCase()}</Placeholder>
+            <Placeholder bgColor={getUserColor(sessionId)}>
+              <span>{username.charAt(0).toUpperCase()}</span>
+            </Placeholder>
           )}
 
         <UsernameOverlay>
