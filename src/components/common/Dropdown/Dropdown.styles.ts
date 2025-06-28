@@ -39,8 +39,8 @@ export const OptionsList = styled.ul<{ $isVisible: boolean }>`
     width:100%;
     position: absolute;
     bottom: 0%;
-    left: calc(10rem + ${({ theme }) => theme.spacings.md});
-    background: white;
+    left: calc(10rem + ${({ theme }) => theme.spacings.sm});
+    background: ${({theme})=>theme.colors.background.light};
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.15);
     padding: ${({theme})=>theme.spacings.xs};
     list-style: none;
@@ -56,6 +56,6 @@ export const Option = styled.li`
     border-radius:${({theme})=>theme.borders.radius.sm};
     
     &:hover {
-        background: ${({theme})=>theme.colors.background.gray};
+        background: ${({theme})=>theme.colors.background.grayLight};
     }
 `;

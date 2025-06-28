@@ -16,6 +16,7 @@ import RecordingStatusPopup from 'components/common/Recording/RecordingStatusPop
 import ListPopup from 'components/common/ListPopup';
 import RecordingPermissionPopup from 'components/common/Recording/RecordingPermissionPopup';
 import RecordingConsentPopup from 'components/common/Recording/RecordingConsentPopup';
+import RecordingPermissionResultPopup from 'components/common/Recording/RecordingPermissionResultPopup';
 // import { useScreenRecording } from 'lib/hooks/useRecording';
 import { useRecording } from 'lib/hooks/useRecording';
 import { useTopSpeaker } from 'lib/hooks/useTopSpeaker';
@@ -31,6 +32,9 @@ type ConferenceProps = {
     isAudioOn: boolean;
     videoDeviceId?: string;
     audioDeviceId?: string;
+
+    isDarkMode: boolean;
+    toggleDarkMode: () => void;
 };
 
 // User data 타입 정의
@@ -67,7 +71,8 @@ const Conference: React.FC<ConferenceProps> = ({
         isVideoOn,
         isAudioOn,
         videoDeviceId,
-        audioDeviceId 
+        audioDeviceId,
+        isDarkMode, toggleDarkMode
     }) => {
 
     //CallControls에서 받는 값
@@ -128,9 +133,8 @@ const Conference: React.FC<ConferenceProps> = ({
     const topSpeakerRef = useRef(topSpeaker);
     const sortedSpeakerIds = useSortedSpeakers(speakingScores, firstSpokenTimestamps);
 
-    const mainSpeakerId = sortedSpeakerIds[0];
-    const subSpeakerIds = sortedSpeakerIds.slice(1);
 
+    
 
     const handleMicToggle = () => {
         const newMicState = !micOn;
@@ -322,6 +326,11 @@ const Conference: React.FC<ConferenceProps> = ({
         stopRecording();
     };
 
+    const handleStartRecording = () => {
+        startRecording();
+        setGranted(null);
+    };
+
     const startRecording = () => {
         if(!recording){
             sendMessage({ eventId: 'startRecording' });
@@ -364,6 +373,14 @@ const Conference: React.FC<ConferenceProps> = ({
     const [recordedFiles, setRecordedFiles] = useState<RecordedFile[]>([]);
     const [elapsed, setElapsed] = useState(0); //녹화 시간 저장
     const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
+    const [granted, setGranted] = useState<boolean | null>(null);
+
+
+    
+    const [participantVolumes, setParticipantVolumes] = useState<Record<string, number>>({});
+    const handleVolumeChange = (sessionId: string, newVolume: number) => {
+        setParticipantVolumes(prev => ({ ...prev, [sessionId]: newVolume }));
+    };
 
     //프론트 녹화 함수들
     const { start, stop, pause, resume, setMicEnabled } = useRecording({
@@ -499,11 +516,12 @@ const Conference: React.FC<ConferenceProps> = ({
                 
                 //녹화 기능
                 case 'startRecording': // 녹화 시작
-                    sendMessage({ eventId: 'confirmRecordingConsent' });
                     start(micOnRef.current).then(() => {
                         setRecordingPaused(false); // 타이머 이제 시작 가능
+                        sendMessage({ eventId: 'confirmRecordingConsent' });
                     }).catch((err) => {
                         console.error('녹화 시작 실패:', err);
+                        sendMessage({ eventId: 'stopRecording' });
                     });
                     break;
                 case 'stopRecording': // 녹화 중지
@@ -527,9 +545,10 @@ const Conference: React.FC<ConferenceProps> = ({
                     setRecordingPopupVisible(true);
                     break;
                 case 'grantRecordingPermission':
-                    startRecording();
+                    setGranted(true);
                     break;
                 case 'denyRecordingPermission':
+                    setGranted(false);
                     break;
                 
                 //녹화 동의
@@ -602,6 +621,11 @@ const Conference: React.FC<ConferenceProps> = ({
                 [sender.sessionId]: participant
             }));
 
+            setParticipantVolumes(prev => {
+                if (prev[sender.sessionId] !== undefined) return prev; // 이미 있으면 건너뜀
+                return { ...prev, [sender.sessionId]: 50 };
+            });
+
             setSpeakingScores(prev => ({
                 ...prev,
                 [sender.sessionId]: 0
@@ -663,6 +687,12 @@ const Conference: React.FC<ConferenceProps> = ({
             ...prev,
             [msg.sessionId]: participant
         }));
+
+        setParticipantVolumes(prev => {
+            if (prev[msg.sessionId] !== undefined) return prev; // 이미 있으면 건너뜀
+            return { ...prev, [msg.sessionId]: 50 };
+        });
+
 
         setSpeakingScores(prev => ({
             ...prev,
@@ -1038,13 +1068,9 @@ const Conference: React.FC<ConferenceProps> = ({
         }, 3000);
     };
 
-    const finalizeRecordingSession = (/*fileName?: string*/) => {
+    const finalizeRecordingSession = () => {
         setRecording(false);
         setRecordingPaused(false);
-
-        // if (fileName?.trim()) {
-        //     setRecordedFiles(prev => [...prev, fileName]);
-        // }
     };
 
     useEffect(() => {
@@ -1089,7 +1115,11 @@ const Conference: React.FC<ConferenceProps> = ({
     return (
     <Wrapper>
         <MainArea>
-            <Header variant="compact" />
+            <Header 
+                variant="compact" 
+                isDarkMode={isDarkMode}
+                toggleDarkMode={toggleDarkMode}
+            />
             <GalleryWrapper>
                 {/* {sortedSpeakerIds.map((sessionId) => {
                     const participant = participants[sessionId];
@@ -1115,10 +1145,12 @@ const Conference: React.FC<ConferenceProps> = ({
                 })} */}
                 <ParticipantVideoGroup $cols={sortedSpeakerIds.length-1}>
                 {sortedSpeakerIds.map((sessionId, index) => {
+                    
                     const participant = participants[sessionId];
                     if (!participant) return null;
 
                     const isMain = index === 0;
+                    const volume = participantVolumes[sessionId]??50;
 
                     return (
                     <ParticipantVideo
@@ -1127,11 +1159,13 @@ const Conference: React.FC<ConferenceProps> = ({
                         username={participant.username}
                         isVideoOn={participant.videoOn}
                         isAudioOn={participant.audioOn}
+                        
                         ref={videoRefs.current[sessionId]}
                         mySessionId={userData.sessionId}
                         emojiName={emojiMessages.find(msg => msg.sessionId === sessionId)?.emoji}
                         onSpeakingScoreChange={(score) => handleSpeakingScoreChange(sessionId, score)}
                         className={isMain ? 'main-video' : 'sub-video'} // ⬅️ 스타일 구분
+                        volume={volume}
                     />
                     );
                 })}
@@ -1211,10 +1245,14 @@ const Conference: React.FC<ConferenceProps> = ({
             currentUserSessionId={userData.sessionId}
             onSendMessage={sendChatMessage}
             roomId={userData.roomId}
+            roomLeaderSessionId={roomLeader.sessionId}
             raisedHandSessionIds={raisedHandSessionIds}
 
             changeNamePopupVisible={changeNamePopupVisible}
             setChangeNamePopupVisible={setChangeNamePopupVisible}
+
+            participantVolumes={participantVolumes}
+            onVolumeChange={handleVolumeChange}
         />
         {emotesVisible && (
             <EmojiPicker
@@ -1361,6 +1399,14 @@ const Conference: React.FC<ConferenceProps> = ({
                     setRecordingConsentPopupVisible(false);
                     exitRoom();
                 }}
+            />
+        )}
+
+        {granted !== null && (
+            <RecordingPermissionResultPopup
+                granted={granted}
+                onClose={() => setGranted(null)}
+                onStartRecording={handleStartRecording}
             />
         )}
         {micListVisible&&(

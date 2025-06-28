@@ -1,19 +1,8 @@
 import React, { useState, useRef } from "react";
-import { DropdownContainer, Selected, OptionsList, Option } from "./Dropdown.styles";
-
-interface DropdownOption {
-  [key: string]: any;
-}
-
-interface DropdownProps {
-  options: DropdownOption[];
-  onChange: (option: DropdownOption) => void;
-  value?: DropdownOption | null;  // <-- 추가
-  placeholder?: string;
-  labelKey?: string;
-  valueKey?: string;
-  title?: string;
-}
+import { DropdownContainer } from "./Dropdown.styles";
+import DropdownSelected from "./DropdownSelected";
+import DropdownOptionList from "./DropdownOptionList";
+import { DropdownProps,DropdownOption  } from "types/dropdown";
 
 const Dropdown: React.FC<DropdownProps> = ({
   options,
@@ -32,34 +21,25 @@ const Dropdown: React.FC<DropdownProps> = ({
     return option[labelKey] ?? String(option);
   };
 
-  const isSelected = (option: DropdownOption) =>
-    value && value[valueKey] === option[valueKey];
-
   return (
     <DropdownContainer
       ref={ref}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <Selected $isHovered={isHovered}>
-        {title} <br/>
-        <span>{getLabel(value)}</span>
-      </Selected>
-      <OptionsList $isVisible={isHovered}>
-        {options.map(option => (
-          <Option
-            key={option[valueKey] ?? option[labelKey] ?? option}
-            onClick={() => onChange(option)}
-          >
-            <input
-              type="radio"
-              checked={isSelected(option)}
-              readOnly
-            />
-            <span>{option[labelKey] ?? String(option)}</span>
-          </Option>
-        ))}
-      </OptionsList>
+      <DropdownSelected
+        isHovered={isHovered}
+        label={getLabel(value)}
+        title={title}
+      />
+      <DropdownOptionList
+        options={options}
+        value={value}
+        onChange={onChange}
+        labelKey={labelKey}
+        valueKey={valueKey}
+        isVisible={isHovered}
+      />
     </DropdownContainer>
   );
 };

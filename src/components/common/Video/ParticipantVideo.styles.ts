@@ -1,11 +1,14 @@
 import styled from 'styled-components';
 
-export const ParticipantContainer = styled.div<{ isPreview?: boolean }>`
+export const ParticipantContainer = styled.div<{ isPreview?: boolean, isSpeaking?: boolean }>`
   position: relative;
   width: ${({ isPreview }) => (isPreview && '70%' )};
+  min-width: 220px;
   aspect-ratio: 16 / 9;
   background-color: transparent;
   border-radius: ${({theme}) => theme.borders.radius.md};
+  border: 3px solid;
+  border-color: ${({ isSpeaking }) => (isSpeaking ? '#00ff3c' : 'transparent')};
   overflow: hidden;
 `;
 
@@ -15,7 +18,7 @@ export const StyledVideo = styled.video`
   object-fit: cover;
 `;
 
-export const Placeholder = styled.div<{ bgColor?: string }>`
+export const Placeholder = styled.div<{ isPreview?: boolean, bgColor?: string }>`
   width: 100%;
   height: 100%;
   background-color: #444;
@@ -32,7 +35,8 @@ export const Placeholder = styled.div<{ bgColor?: string }>`
     border-radius:${({theme})=>theme.borders.radius.round};
     align-items: center;
     justify-content: center;
-    // font-size:${({theme})=>theme.fontSizes.lg};
+    font-size: ${({ isPreview, theme }) => (isPreview && theme.fontSizes.xl )};
+    overflow: hidden;
   }
 `;
 
