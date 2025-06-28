@@ -16,10 +16,14 @@ import RecordingStatusPopup from 'components/common/Recording/RecordingStatusPop
 import ListPopup from 'components/common/ListPopup';
 import RecordingPermissionPopup from 'components/common/Recording/RecordingPermissionPopup';
 import RecordingConsentPopup from 'components/common/Recording/RecordingConsentPopup';
+import RecordingPermissionResultPopup from 'components/common/Recording/RecordingPermissionResultPopup';
 // import { useScreenRecording } from 'lib/hooks/useRecording';
 import { useRecording } from 'lib/hooks/useRecording';
 import { useTopSpeaker } from 'lib/hooks/useTopSpeaker';
 import { useSortedSpeakers } from 'lib/hooks/useSortedSpeakers';
+import NameChangePopup from 'components/common/NameChangePopup';
+import AudioInputSelector from 'components/common/UserSettings/AudioInputSelector';
+import VideoInputSelector from 'components/common/UserSettings/VideoInputSelector';
 
 type ConferenceProps = {
     name: string;
@@ -28,6 +32,9 @@ type ConferenceProps = {
     isAudioOn: boolean;
     videoDeviceId?: string;
     audioDeviceId?: string;
+
+    isDarkMode: boolean;
+    toggleDarkMode: () => void;
 };
 
 // User data 타입 정의
@@ -64,7 +71,8 @@ const Conference: React.FC<ConferenceProps> = ({
         isVideoOn,
         isAudioOn,
         videoDeviceId,
-        audioDeviceId 
+        audioDeviceId,
+        isDarkMode, toggleDarkMode
     }) => {
 
     //CallControls에서 받는 값
@@ -81,13 +89,33 @@ const Conference: React.FC<ConferenceProps> = ({
     const [recordingListVisible, setRecordingListVisible] = useState(false);
     const [recordingPopupVisible, setRecordingPopupVisible] = useState(false);
     const [recordingConsentPopupVisible, setRecordingConsentPopupVisible] = useState(false);
+
     const [captionsVisible, setCaptionsVisible] = useState(false);
     const [emotesVisible, setEmotesVisible] = useState(false);
+    const [handRaised, setHandRaised] = useState(false);
+    const [changeNamePopupVisible, setChangeNamePopupVisible] = useState(false);
+
+    const [micListVisible, setMicListVisible] = useState(false);
+    const [videoListVisible, setVideoListVisible] = useState(false);
 
     //참가자 점수 저장
     const [speakingScores, setSpeakingScores] = useState<{ [id: string]: number }>({});
     const [firstSpokenTimestamps, setFirstSpokenTimestamps] = useState<{ [id: string]: number }>({});
 
+    const handleMicListToggle = () => {
+        setMicListVisible(prev => {
+            if (!prev) setVideoListVisible(false); // 켜질 때 다른 거 끔
+            return !prev;
+        })  ;
+    };
+
+    const handleVideoListToggle = () => {
+        setVideoListVisible(prev => {
+            if (!prev) setMicListVisible(false); // 켜질 때 다른 거 끔
+            return !prev;
+        });
+    };
+  
     const handleSpeakingScoreChange = (sessionId: string, score: number) => {
         setSpeakingScores(prev => {
             if (prev[sessionId] === score) {
@@ -102,11 +130,11 @@ const Conference: React.FC<ConferenceProps> = ({
         });
     };
     const topSpeaker = useTopSpeaker(speakingScores);
+    const topSpeakerRef = useRef(topSpeaker);
     const sortedSpeakerIds = useSortedSpeakers(speakingScores, firstSpokenTimestamps);
 
-    const mainSpeakerId = sortedSpeakerIds[0];
-    const subSpeakerIds = sortedSpeakerIds.slice(1);
 
+    
 
     const handleMicToggle = () => {
         const newMicState = !micOn;
@@ -128,7 +156,166 @@ const Conference: React.FC<ConferenceProps> = ({
         });
     };
 
-    const handleScreenSharingToggle = () => setScreenSharing((prev) => !prev);
+    // const handleScreenSharingToggle = () => setScreenSharing((prev) => !prev);
+    const [videoTracks, setVideoTracks] = useState<{
+        [id: string]: { video: MediaStreamTrack; audio: MediaStreamTrack };
+    }>({});
+    
+
+    const [selectedMicId, setSelectedMicId] = useState<string | undefined>(audioDeviceId);
+    const [selectedVideoId, setSelectedVideoId] = useState<string | undefined>(videoDeviceId);
+
+    const displayStreamRef = useRef<MediaStream | null>(null); // 꼭 선언해 주세요
+
+    const handleScreenSharingToggle = async () => {
+        const participant = participantsRef.current[userData.sessionId];
+        if (!participant?.rtcPeer) return;
+
+        const peerConnection = participant.rtcPeer.peerConnection;
+        const videoSender = peerConnection.getSenders().find(s => s.track?.kind === "video");
+        const audioSender = peerConnection.getSenders().find(s => s.track?.kind === "audio");
+
+        if (!videoSender || !audioSender) return;
+
+        if (!screenSharing) {
+            try {
+                const displayStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: true,
+                    audio: true,
+                });
+
+                const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                micStream.getAudioTracks().forEach(track => {
+                    displayStream.addTrack(track);
+                });
+
+                displayStreamRef.current = displayStream; // ✅ 저장
+
+                const screenTrack = displayStream.getVideoTracks()[0];
+                const micTrack = micStream.getAudioTracks()[0];
+
+                const prevVideoTrack = videoSender.track;
+                const prevAudioTrack = audioSender.track;
+
+                setVideoTracks(prev => ({
+                    ...prev,
+                    [userData.sessionId]: {
+                        video: prevVideoTrack,
+                        audio: prevAudioTrack,
+                    }
+                }));
+
+                await videoSender.replaceTrack(screenTrack);
+                await audioSender.replaceTrack(micTrack);
+
+                const localVideoEl = videoRefs.current[userData.sessionId]?.current;
+                if (localVideoEl) localVideoEl.srcObject = displayStream;
+
+                setScreenSharing(true);
+
+                screenTrack.onended = () => {
+                    stopScreenSharing();
+                };
+            } catch (err) {
+                console.error("화면 공유 시작 오류:", err);
+            }
+        } else {
+            stopScreenSharing();
+        }
+
+        async function stopScreenSharing() {
+            const prevTracks = videoTracks[userData.sessionId];
+            if (prevTracks?.video) await videoSender.replaceTrack(prevTracks.video);
+            if (prevTracks?.audio) await audioSender.replaceTrack(prevTracks.audio);
+
+            const localVideoEl = videoRefs.current[userData.sessionId]?.current;
+            if (localVideoEl && localStreamRef.current) {
+                localVideoEl.srcObject = localStreamRef.current;
+            }
+
+            // ✅ displayStream이 살아 있으면 stop
+            if (displayStreamRef.current) {
+                displayStreamRef.current.getTracks().forEach(track => track.stop());
+                displayStreamRef.current = null;
+            }
+
+            setScreenSharing(false);
+        }
+    };
+
+    const replaceAudioTrack = async (newDeviceId: string) => {
+        const participant = participantsRef.current[userData.sessionId];
+        if (!participant?.rtcPeer) return;
+
+        const audioSender = participant.rtcPeer.peerConnection
+            .getSenders()
+            .find((s) => s.track?.kind === "audio");
+
+        if (!audioSender) return;
+
+        const newStream = await navigator.mediaDevices.getUserMedia({
+            audio: { deviceId: { exact: newDeviceId } }
+        });
+
+        const newAudioTrack = newStream.getAudioTracks()[0];
+        await audioSender.replaceTrack(newAudioTrack);
+
+        // 로컬 비디오 스트림에도 반영
+        const localStream = localStreamRef.current;
+        if (localStream) {
+            localStream.removeTrack(localStream.getAudioTracks()[0]);
+            localStream.addTrack(newAudioTrack);
+        }
+
+        // UI에서도 듣기 반영
+        const localVideoEl = videoRefs.current[userData.sessionId]?.current;
+        if (localVideoEl) {
+            localVideoEl.srcObject = localStream;
+        }
+    };
+
+    const handleMicDeviceChange = (deviceId: string) => {
+        if (deviceId === selectedMicId) return; // 이미 선택된 장치면 무시
+        setSelectedMicId(deviceId);
+        replaceAudioTrack(deviceId); // 실제 트랙 교체 함수
+    };
+    const replaceVideoTrack = async (newDeviceId: string) => {
+        const participant = participantsRef.current[userData.sessionId];
+        if (!participant?.rtcPeer) return;
+
+        const videoSender = participant.rtcPeer.peerConnection
+            .getSenders()
+            .find((s) => s.track?.kind === "video");
+
+        if (!videoSender) return;
+
+        const newStream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: newDeviceId } }
+        });
+
+        const newVideoTrack = newStream.getVideoTracks()[0];
+        await videoSender.replaceTrack(newVideoTrack);
+
+        const localStream = localStreamRef.current;
+        if (localStream) {
+            localStream.removeTrack(localStream.getVideoTracks()[0]);
+            localStream.addTrack(newVideoTrack);
+        }
+
+        const localVideoEl = videoRefs.current[userData.sessionId]?.current;
+        if (localVideoEl) {
+            localVideoEl.srcObject = localStream;
+        }
+    };
+
+    const handleVideoDeviceChange = (deviceId: string) => {
+        if (deviceId === selectedVideoId) return; // 중복 방지
+        setSelectedVideoId(deviceId);
+        replaceVideoTrack(deviceId); // 트랙 교체 로직 호출
+    };
+
+
     const handleRecordingToggle = () => {
         if(roomLeader.sessionId===userData.sessionId){   
             startRecording();
@@ -137,6 +324,11 @@ const Conference: React.FC<ConferenceProps> = ({
         }
 
         stopRecording();
+    };
+
+    const handleStartRecording = () => {
+        startRecording();
+        setGranted(null);
     };
 
     const startRecording = () => {
@@ -173,9 +365,6 @@ const Conference: React.FC<ConferenceProps> = ({
     const ws = useRef<WebSocket | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
     const videoRefs = useRef<{ [sessionId: string]: React.RefObject<HTMLVideoElement> }>({});
-    //미디어 스트림 관리
-    const [mediaStreams, setMediaStreams] = useState<{ [id: string]: MediaStream }>({});
-
     
 
     const [participants, setParticipants] = useState<{ [sessionId: string]: Participant }>({});
@@ -184,6 +373,14 @@ const Conference: React.FC<ConferenceProps> = ({
     const [recordedFiles, setRecordedFiles] = useState<RecordedFile[]>([]);
     const [elapsed, setElapsed] = useState(0); //녹화 시간 저장
     const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
+    const [granted, setGranted] = useState<boolean | null>(null);
+
+
+    
+    const [participantVolumes, setParticipantVolumes] = useState<Record<string, number>>({});
+    const handleVolumeChange = (sessionId: string, newVolume: number) => {
+        setParticipantVolumes(prev => ({ ...prev, [sessionId]: newVolume }));
+    };
 
     //프론트 녹화 함수들
     const { start, stop, pause, resume, setMicEnabled } = useRecording({
@@ -210,6 +407,7 @@ const Conference: React.FC<ConferenceProps> = ({
         audioOn: isAudioOn,
         videoOn: isVideoOn,
     });
+    const userDataRef = useRef(userData);
 
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
     const [emojiMessages, setEmojiMessages] = useState<EmojiMessage[]>([]);
@@ -318,11 +516,12 @@ const Conference: React.FC<ConferenceProps> = ({
                 
                 //녹화 기능
                 case 'startRecording': // 녹화 시작
-                    sendMessage({ eventId: 'confirmRecordingConsent' });
                     start(micOnRef.current).then(() => {
                         setRecordingPaused(false); // 타이머 이제 시작 가능
+                        sendMessage({ eventId: 'confirmRecordingConsent' });
                     }).catch((err) => {
                         console.error('녹화 시작 실패:', err);
+                        sendMessage({ eventId: 'stopRecording' });
                     });
                     break;
                 case 'stopRecording': // 녹화 중지
@@ -346,9 +545,10 @@ const Conference: React.FC<ConferenceProps> = ({
                     setRecordingPopupVisible(true);
                     break;
                 case 'grantRecordingPermission':
-                    startRecording();
+                    setGranted(true);
                     break;
                 case 'denyRecordingPermission':
+                    setGranted(false);
                     break;
                 
                 //녹화 동의
@@ -371,6 +571,10 @@ const Conference: React.FC<ConferenceProps> = ({
     useEffect(()=>{
         console.log("userData:",userData);
     },[userData]);
+
+    useEffect(() => {
+        topSpeakerRef.current = topSpeaker;
+    }, [topSpeaker]);
 
     const sendMessage = (message) => {
         let jsonMessage = JSON.stringify(message);
@@ -416,6 +620,11 @@ const Conference: React.FC<ConferenceProps> = ({
                 ...prev,
                 [sender.sessionId]: participant
             }));
+
+            setParticipantVolumes(prev => {
+                if (prev[sender.sessionId] !== undefined) return prev; // 이미 있으면 건너뜀
+                return { ...prev, [sender.sessionId]: 50 };
+            });
 
             setSpeakingScores(prev => ({
                 ...prev,
@@ -478,6 +687,12 @@ const Conference: React.FC<ConferenceProps> = ({
             ...prev,
             [msg.sessionId]: participant
         }));
+
+        setParticipantVolumes(prev => {
+            if (prev[msg.sessionId] !== undefined) return prev; // 이미 있으면 건너뜀
+            return { ...prev, [msg.sessionId]: 50 };
+        });
+
 
         setSpeakingScores(prev => ({
             ...prev,
@@ -751,10 +966,10 @@ const Conference: React.FC<ConferenceProps> = ({
         }
 
         // 본인일 경우 userData도 업데이트
-        if (data.sessionId === userData.sessionId) {
+        if (data.sessionId === userDataRef.current.sessionId) {
             setUserData(prev => ({
-            ...prev,
-            username: data.newUserName,
+                ...prev,
+                username: data.newUserName,
             }));
         }
     };
@@ -830,11 +1045,13 @@ const Conference: React.FC<ConferenceProps> = ({
             from: data.senderName,
             to: data.receiverName,
             emoji: data.emoji,
-            sessionId: data.receiverSessionId,
+            // sessionId: data.receiverSessionId,
+            sessionId: topSpeakerRef.current?.id,
         };
 
-        setEmojiMessages((prev) => [...prev, emojiMessage]);
+        console.log(topSpeakerRef.current?.id);
 
+        setEmojiMessages((prev) => [...prev, emojiMessage]);
         
         if(data.emoji==='Raising_Hands') {
             setRaisedHandSessionIds((prev) => {
@@ -851,14 +1068,14 @@ const Conference: React.FC<ConferenceProps> = ({
         }, 3000);
     };
 
-    const finalizeRecordingSession = (/*fileName?: string*/) => {
+    const finalizeRecordingSession = () => {
         setRecording(false);
         setRecordingPaused(false);
-
-        // if (fileName?.trim()) {
-        //     setRecordedFiles(prev => [...prev, fileName]);
-        // }
     };
+
+    useEffect(() => {
+        userDataRef.current = userData; // userData가 바뀔 때마다 ref도 업데이트
+    }, [userData]);
     
     // 참가자 상태가 변경될 때마다 UI에 반영
     useEffect(() => {
@@ -895,11 +1112,14 @@ const Conference: React.FC<ConferenceProps> = ({
         }
     }, [videoOn]);
 
-
     return (
     <Wrapper>
         <MainArea>
-            <Header variant="compact" />
+            <Header 
+                variant="compact" 
+                isDarkMode={isDarkMode}
+                toggleDarkMode={toggleDarkMode}
+            />
             <GalleryWrapper>
                 {/* {sortedSpeakerIds.map((sessionId) => {
                     const participant = participants[sessionId];
@@ -925,10 +1145,12 @@ const Conference: React.FC<ConferenceProps> = ({
                 })} */}
                 <ParticipantVideoGroup $cols={sortedSpeakerIds.length-1}>
                 {sortedSpeakerIds.map((sessionId, index) => {
+                    
                     const participant = participants[sessionId];
                     if (!participant) return null;
 
                     const isMain = index === 0;
+                    const volume = participantVolumes[sessionId]??50;
 
                     return (
                     <ParticipantVideo
@@ -937,11 +1159,13 @@ const Conference: React.FC<ConferenceProps> = ({
                         username={participant.username}
                         isVideoOn={participant.videoOn}
                         isAudioOn={participant.audioOn}
+                        
                         ref={videoRefs.current[sessionId]}
                         mySessionId={userData.sessionId}
                         emojiName={emojiMessages.find(msg => msg.sessionId === sessionId)?.emoji}
                         onSpeakingScoreChange={(score) => handleSpeakingScoreChange(sessionId, score)}
                         className={isMain ? 'main-video' : 'sub-video'} // ⬅️ 스타일 구분
+                        volume={volume}
                     />
                     );
                 })}
@@ -960,8 +1184,14 @@ const Conference: React.FC<ConferenceProps> = ({
             <CallControls
                 micOn={micOn}
                 setMicOn={handleMicToggle}
+                micListVisible={micListVisible}
+                setMicListVisible={handleMicListToggle}
+        
                 videoOn={videoOn}
                 setVideoOn={handleVideoToggle}
+                videoListVisible={videoListVisible}
+                setVideoListVisible={handleVideoListToggle}
+
                 screenSharing={screenSharing}
                 setScreenSharing={handleScreenSharingToggle}
                 recording={recording}
@@ -979,7 +1209,22 @@ const Conference: React.FC<ConferenceProps> = ({
                 onExit={exitRoom}
             />
         </MainArea>
-        <ChangeNameForm
+        {changeNamePopupVisible && 
+        (<NameChangePopup
+            currentName={userData.username}
+            onChangeName={(newName) => {
+                const message = {
+                eventId: 'changeName',
+                sessionId: userData.sessionId,
+                newUserName: newName,
+                };
+                sendMessage(message);
+            }}
+            onClose={()=>setChangeNamePopupVisible(false)}
+        />)}
+
+
+        {/* <ChangeNameForm
             currentName={userData.username}
             sessionId={userData.sessionId}
             onChangeName={(newName) => {
@@ -990,7 +1235,7 @@ const Conference: React.FC<ConferenceProps> = ({
                 };
                 sendMessage(message);
             }}
-            />
+            /> */}
         <Sidebar 
             participants={Object.values(participants)} 
             participantsVisible={participantsVisible}
@@ -1000,7 +1245,14 @@ const Conference: React.FC<ConferenceProps> = ({
             currentUserSessionId={userData.sessionId}
             onSendMessage={sendChatMessage}
             roomId={userData.roomId}
+            roomLeaderSessionId={roomLeader.sessionId}
             raisedHandSessionIds={raisedHandSessionIds}
+
+            changeNamePopupVisible={changeNamePopupVisible}
+            setChangeNamePopupVisible={setChangeNamePopupVisible}
+
+            participantVolumes={participantVolumes}
+            onVolumeChange={handleVolumeChange}
         />
         {emotesVisible && (
             <EmojiPicker
@@ -1031,6 +1283,8 @@ const Conference: React.FC<ConferenceProps> = ({
                     sendMessage(messagePayload);
                 }}
                 hasSidebar={hasSidebar}
+                handRaised={handRaised}
+                setHandRaised={setHandRaised}
             />
         )}
 
@@ -1145,6 +1399,26 @@ const Conference: React.FC<ConferenceProps> = ({
                     setRecordingConsentPopupVisible(false);
                     exitRoom();
                 }}
+            />
+        )}
+
+        {granted !== null && (
+            <RecordingPermissionResultPopup
+                granted={granted}
+                onClose={() => setGranted(null)}
+                onStartRecording={handleStartRecording}
+            />
+        )}
+        {micListVisible&&(
+            <AudioInputSelector
+                onDeviceChange={handleMicDeviceChange}
+                selectedDeviceId={selectedMicId}
+            />
+        )}
+        {videoListVisible&&(
+            <VideoInputSelector
+                onDeviceChange={handleVideoDeviceChange}
+                selectedDeviceId={selectedVideoId}
             />
         )}
     </Wrapper>

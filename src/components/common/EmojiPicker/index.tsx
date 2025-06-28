@@ -18,18 +18,15 @@ type EmojiPickerProps = {
   participants: { sessionId: string; username: string }[];
   currentUserSessionId: string;
   hasSidebar: boolean;
+  handRaised: boolean;
+  setHandRaised: React.Dispatch<React.SetStateAction<boolean>>;
 };
 
 
-const EmojiPicker: React.FC<EmojiPickerProps> = ({ onSelect, onClose, participants, currentUserSessionId, hasSidebar }) => {
-  const [targetSessionId, setTargetSessionId] = useState<string>('');
-  const [handRaised, setHandRaised] = useState(false);
+const EmojiPicker: React.FC<EmojiPickerProps> = ({ onSelect, onClose, participants, currentUserSessionId, hasSidebar , handRaised, setHandRaised}) => {
   const raisingHands = emojiList.find(e => e.name === 'Raising_Hands');
 
   const handleSelect = (emojiName: string) => {
-    // const receiver = participants.find(p => p.sessionId === targetSessionId);
-    // onSelect(emojiName, targetSessionId ? receiver ?? null : null);
-    // const receiver = participants[0] ?? null;
     onSelect(emojiName);
   };
 
@@ -71,26 +68,6 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({ onSelect, onClose, participan
             </EmojiButton>
         ))}
         </EmojiGrid>
-        
-        {/* <TargetSelector>
-          <label>수신자:</label>
-          <select
-            value={targetSessionId}
-            onChange={e => setTargetSessionId(e.target.value)}
-            >
-            <option value="" disabled hidden>수신자 선택</option>
-            {participants
-                .filter(p => p.sessionId !== currentUserSessionId)
-                .filter((p, index, self) =>
-                index === self.findIndex(other => other.sessionId === p.sessionId)
-                ) 
-                .map(p => (
-                <option key={p.sessionId} value={p.sessionId}>
-                    {p.username}
-                </option>
-                ))}
-            </select>
-        </TargetSelector> */}
         <HandRaiseContainer>
           <HandRaiseButton onClick={handleToggleHand}>
             <raisingHands.Component width={18} height={18}/>

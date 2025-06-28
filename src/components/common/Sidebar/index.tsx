@@ -11,9 +11,15 @@ interface SidebarProps {
   chatMessages: ChatMessage[];
   systemMessages: SystemMessage[];
   currentUserSessionId: string;
+  roomLeaderSessionId: string;
   onSendMessage: (input: ChatMessageInput) => void;
   roomId: string;
   raisedHandSessionIds: string[]; 
+  changeNamePopupVisible: boolean;
+  setChangeNamePopupVisible: (visible: boolean) => void;
+
+  participantVolumes: Record<string, number>;
+  onVolumeChange: (sessionId: string, volume: number) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -21,8 +27,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     participantsVisible, 
     chatVisible, 
     chatMessages, onSendMessage, systemMessages, raisedHandSessionIds,
-    currentUserSessionId,
-    roomId
+    currentUserSessionId, roomLeaderSessionId,
+    roomId,
+    changeNamePopupVisible,setChangeNamePopupVisible,
+    participantVolumes, onVolumeChange
  }) => {
     const isOpen = participantsVisible || chatVisible;
 
@@ -34,8 +42,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                     participants={participants} 
                     participantsVisible={participantsVisible && !chatVisible} 
                     roomId={roomId} 
+                    roomLeaderSessionId={roomLeaderSessionId}
                     raisedHandSessionIds={raisedHandSessionIds} 
-                    currentUserSessionId={currentUserSessionId} 
+                    currentUserSessionId={currentUserSessionId}
+                    
+                    changeNamePopupVisible={changeNamePopupVisible}
+                    setChangeNamePopupVisible={setChangeNamePopupVisible}
+
+                    participantVolumes={participantVolumes}        // 추가
+                    onVolumeChange={onVolumeChange}
                 />
             </ParticipantsArea>
         )}

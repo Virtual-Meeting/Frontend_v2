@@ -5,8 +5,8 @@ export const PanelWrapper = styled.div<{ participantsVisible: boolean }>`
   display: flex;
   flex-direction: column;
   align-items: center;
-  height: ${({ participantsVisible }) => participantsVisible ? '100vh':'30vh'};
-  
+  // height: 100%;
+  height: ${({ participantsVisible }) => participantsVisible ? '100vh':'40vh'};
 `;
 
 export const ParticipantsList = styled.div`
@@ -26,4 +26,13 @@ export const ParticipantsList = styled.div`
   &::-webkit-scrollbar {
     display: none; /* Chrome, Safari, Opera */
   }
+`;
+
+export const ButtonWrapper = styled.div`
+  width: 90%;
+  display: flex;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacings.xs};
+  margin-top: ${({ theme }) => theme.spacings.sm};
+  padding-bottom: ${({ theme }) => theme.spacings.sm};
 `;

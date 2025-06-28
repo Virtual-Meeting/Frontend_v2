@@ -2,20 +2,21 @@ import React from 'react';
 import CallControlButton from './Button/CallControlButton';
 import CollapsibleControls from './CollapsibleControls';
 
-import {
-  MicIcon,
-  MicOffIcon,
-  VideoIcon,
-  VideoOffIcon,
-  ChatIcon,
-  UsersIcon,
-  RecordIcon,
-  ScreenShareIcon,
-  EmojiIcon,
-  ClosedCaptioningIcon
-} from 'assets/icons/black';
+// import {
+//   MicIcon,
+//   MicOffIcon,
+//   VideoIcon,
+//   VideoOffIcon,
+//   ChatIcon,
+//   UsersIcon,
+//   RecordIcon,
+//   ScreenShareIcon,
+//   EmojiIcon,
+//   ClosedCaptioningIcon
+// } from 'assets/icons/black';
 
 import { ControlsWrapper, InteractionControls, MediaControls, ControlsToggleGroup, SystemControls } from './CallControls.styles';
+import { useIconSet } from 'lib/hooks/useIconSet';
 import Button from '../Button';
 
 type CallControlsProps = {
@@ -39,11 +40,16 @@ type CallControlsProps = {
 
     recordingListVisible: boolean;  // 녹화본 리스트 팝업 상태
     setRecordingListVisible: () => void;  // 녹화본 리스트 팝업 열기/닫기 함수
+
+    micListVisible: boolean;
+    setMicListVisible:() => void;
+    videoListVisible:boolean;
+    setVideoListVisible:() => void;
 };
 
 const CallControls: React.FC<CallControlsProps> = ({
-    micOn, setMicOn,
-    videoOn, setVideoOn,
+    micOn, setMicOn, micListVisible, setMicListVisible,
+    videoOn, setVideoOn, videoListVisible, setVideoListVisible,
     screenSharing, setScreenSharing,
     recording, setRecording, recordingListVisible, setRecordingListVisible,
     captionsVisible, setCaptionsVisible,
@@ -52,6 +58,19 @@ const CallControls: React.FC<CallControlsProps> = ({
     emotesVisible, setEmotesVisible,
     onExit
 }) => {
+
+    const {
+        MicIcon,
+        MicOffIcon,
+        VideoIcon,
+        VideoOffIcon,
+        ChatIcon,
+        UsersIcon,
+        RecordIcon,
+        ScreenShareIcon,
+        EmojiIcon,
+        ClosedCaptioningIcon,
+    } = useIconSet();
 
     return (
         <ControlsWrapper>
@@ -64,7 +83,10 @@ const CallControls: React.FC<CallControlsProps> = ({
                         label={micOn ? 'Mute' : 'Unmute'}
                         variant='media'
                     />
-                    <CollapsibleControls active={micOn}/>
+                    <CollapsibleControls 
+                        active={micOn} 
+                        onToggle={setMicListVisible}
+                        isCollapsed={micListVisible}/>
                 </ControlsToggleGroup>
                 <ControlsToggleGroup $active={videoOn}>
                     <CallControlButton
@@ -74,7 +96,9 @@ const CallControls: React.FC<CallControlsProps> = ({
                         label={videoOn ? 'Stop Video' : 'Start Video'}
                         variant='media'
                     />
-                    <CollapsibleControls active={videoOn}/>
+                    <CollapsibleControls active={videoOn}
+                    onToggle={setVideoListVisible}
+                        isCollapsed={videoListVisible}/>
                 </ControlsToggleGroup>
             </MediaControls>
             <InteractionControls>

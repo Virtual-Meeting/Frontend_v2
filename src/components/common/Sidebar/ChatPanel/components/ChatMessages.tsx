@@ -26,6 +26,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ chatMessages, systemMessage
               fontStyle: 'italic',
               color: '#888',
               margin: '8px 0',
+              fontSize: '12px',
             }}
           >
             {msg.content}
@@ -38,7 +39,7 @@ const ChatMessages: React.FC<ChatMessagesProps> = ({ chatMessages, systemMessage
                 isCurrentUser={msg.sessionId === currentUserSessionId}
             >
                 <Profile bgColor={getUserColor(msg.sessionId)}>
-                    {msg.sessionId === currentUserSessionId ? '나' : msg.from}
+                    {msg.sessionId === currentUserSessionId ? '나' : msg.from.charAt(0)}
                 </Profile>
                 <MessageContent isCurrentUser={msg.sessionId === currentUserSessionId}>
                     {msg.type === 'private' && (
