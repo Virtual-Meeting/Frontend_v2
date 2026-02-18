@@ -5,12 +5,26 @@
 비언어적 반응(이모지)을 실시간으로 공유해 상호작용을 강화한 **WebRTC 화상 커뮤니케이션 플랫폼**으로 본 프로젝트는 **2인 팀 프로젝트**로 제작되었습니다.
 
 
-
-### 🎥 데모 영상
-TODO
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/6ae75431-5943-44d2-9733-6e74dedcbf3e"/>
+</p>
 
 <br/>
 
+### 🎥 데모 영상
+
+
+아래 이미지 클릭(**유튜브링크**)시 데모 영상으로 넘어갑니다.
+
+<a href="https://youtu.be/bu5gQc6qs1c" target="_blank">
+  <img width="400" alt="Demo Video"
+       src="https://github.com/user-attachments/assets/129e6019-321b-4504-8997-8c343c6ffe31" />
+</a>
+
+
+<br/>
+
+<br/>
  
 | 내용 | 주소 |
 | -- | -- |
@@ -77,14 +91,34 @@ React 19 · TypeScript · React Router v7 · styled-components · WebRTC · Kure
 - ESLint (CRA preset)
 - TS Path Alias (assets/*, components/*, pages/*, lib/*, types/*)
 
+
+
+| Frontend | Realtime/Media | Testing / Quality | Build / Tooling |
+| -- | -- | -- | -- |
+|React (v19)|WebRTC <br/>(getUserMedia / RTCPeerConnection)|Jest <br/>(react-scripts)|Create React App <br/>(react-scripts)
+|TypeScript|Kurento Utils<br/> (WebRtcPeer 기반 송수신)|React Testing Library <br/>(@testing-library/*)|ESLint <br/>(CRA preset)
+|React Router DOM (v7)|WebSocket Signaling <br/>(room/SDP/ICE 이벤트 처리)||TS Path Alias<br/> (assets/*, components/*, pages/*, lib/*, types/*)
+|styled-components (v6)|Screen Sharing <br/>(getDisplayMedia + replaceTrack)|
+||Recording <br/>(MediaRecorder + webm-duration-fix)|
+||Voice Activity Detection <br/>(Web Audio API: AudioContext/Analyser)|
+
 <br/>
 
 ## 💡 핵심 기능
 - 실시간 화상 회의 (WebRTC, Kurento 기반)
+ 
+  
 - 동적 이모지 리액션(애니메이션)
+
+
+![이모지보내기](https://github.com/user-attachments/assets/03ad7264-c868-4144-b2be-adc3408e0278)
+
+![손들기](https://github.com/user-attachments/assets/ba44c2d3-1b06-4da0-9ab7-b25696cda9ef)
+
 - 화면 공유
 - 실시간 채팅
 - 녹화 제어 UI (실제 녹화 처리/권한은 Backend 의존)
 
+![녹화및다운로드](https://github.com/user-attachments/assets/b3cb2838-116b-48d3-8a74-83528ae8cec8)
 
 
