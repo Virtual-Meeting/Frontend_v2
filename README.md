@@ -62,26 +62,17 @@
 |------|------|------|
 | 🎭 실시간 이모지 반응 | WebSocket 기반 이벤트 동기화를 통해 참여자의 반응을 발화자에게 전달 | <img src="https://github.com/user-attachments/assets/03ad7264-c868-4144-b2be-adc3408e0278" width="300"/> |
 | ✋ 손들기/손내리기 | 발언 상태를 이벤트로 전송하여 참가자목록에 표시 | <img src="https://github.com/user-attachments/assets/ba44c2d3-1b06-4da0-9ab7-b25696cda9ef" width="300"/> |
-| 🖥 화면 공유 | WebRTC replaceTrack을 활용한 동적 트랙 전환 | <img src="./assets/screen.gif" width="300"/> |
+| 🖥 화면 공유 | WebRTC replaceTrack을 활용한 동적 트랙 전환 | <img src="https://github.com/user-attachments/assets/5f179426-c498-4a67-ac5f-12e64f26e4a3" width="300"/> |
 | 🎥 회의 녹화 | MediaRecorder API 기반 클라이언트 녹화 및 다운로드 | <img src="https://github.com/user-attachments/assets/b3cb2838-116b-48d3-8a74-83528ae8cec8" width="300"/> |
-| 💬 실시간 채팅 (전체 / 개인) | WebSocket 기반 메시지 전송 및 브로드캐스트 처리 |  |
+| 💬 실시간 채팅 (전체 / 개인) | WebSocket 기반 메시지 전송 및 브로드캐스트 처리 | <img src="https://github.com/user-attachments/assets/b4149078-3c99-49cd-b18e-60c1e56e3da3" width="300"/> |
 
 
 <br/>
 
 ## 🏗 시스템 아키텍처
 
-Frontend (React)  
-   ↓ WebSocket (Signaling)  
-Backend (Spring Boot)  
-   ↓  
-Kurento Media Server  
-   ↓  
-WebRTC Peer Connection  
+<img width="5342" height="2135" alt="vmo아키텍처" src="https://github.com/user-attachments/assets/ff634362-381b-4d20-8749-cd4d602b03ea" />
 
-- WebSocket을 통해 SDP/ICE 교환  
-- Kurento 기반 멀티 피어 연결 처리  
-- 실시간 이벤트와 React 상태 동기화  
 
 <br/>
 
