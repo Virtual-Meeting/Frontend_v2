@@ -76,6 +76,9 @@
 
 <br/>
 
+<br/>
+
+
 ## 🙋 My Role (Frontend)
 
 - **WebRTC 연결 및 세션 관리**
@@ -97,6 +100,7 @@
   - 대기실(장치 선택/이름 입력)
   - 채팅, 이모지, 손들기 기능 구현
 
+<br/>
 <br/>
 
 ## 🐛 Troubleshooting
