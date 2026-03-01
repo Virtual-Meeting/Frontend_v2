@@ -8,8 +8,6 @@ import {
   VolumeLabel,
   VolumeTooltip
 } from "./MicMoreMenu.styles";
-
-// import { OptionsIcon } from "assets/icons/black";
 import { useIconSet } from "lib/hooks/useIconSet";
 
 interface MicMoreMenuProps {
@@ -27,7 +25,6 @@ const MicMoreMenu: React.FC<MicMoreMenuProps> = ({
   volume,
   onVolumeChange,
 }) => {
-  
   const { OptionsIcon } = useIconSet();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showVolumeControl, setShowVolumeControl] = useState(false);
@@ -106,11 +103,11 @@ const MicMoreMenu: React.FC<MicMoreMenuProps> = ({
                     통화방 마이크 끄기
                 </MenuItem>
             )}
-            {isCurrentUserRoomLeader && (
+            {/* {isCurrentUserRoomLeader && (
                 <MenuItem onClick={handleVideoOffClick}>
                     통화방 비디오 끄기
                 </MenuItem>
-            )}
+            )} */}
         </Menu>
         )}
     </div>

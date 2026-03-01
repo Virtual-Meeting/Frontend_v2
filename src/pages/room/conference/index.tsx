@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as kurentoUtils from 'kurento-utils';
 import fixWebmDuration from 'webm-duration-fix';
@@ -101,6 +101,7 @@ const Conference: React.FC<ConferenceProps> = ({
     //참가자 점수 저장
     const [speakingScores, setSpeakingScores] = useState<{ [id: string]: number }>({});
     const [firstSpokenTimestamps, setFirstSpokenTimestamps] = useState<{ [id: string]: number }>({});
+    
 
     const handleMicListToggle = () => {
         setMicListVisible(prev => {
@@ -131,10 +132,6 @@ const Conference: React.FC<ConferenceProps> = ({
     };
     const topSpeaker = useTopSpeaker(speakingScores);
     const topSpeakerRef = useRef(topSpeaker);
-    const sortedSpeakerIds = useSortedSpeakers(speakingScores, firstSpokenTimestamps);
-
-
-    
 
     const handleMicToggle = () => {
         const newMicState = !micOn;
@@ -165,7 +162,8 @@ const Conference: React.FC<ConferenceProps> = ({
     const [selectedMicId, setSelectedMicId] = useState<string | undefined>(audioDeviceId);
     const [selectedVideoId, setSelectedVideoId] = useState<string | undefined>(videoDeviceId);
 
-    const displayStreamRef = useRef<MediaStream | null>(null); // 꼭 선언해 주세요
+    const displayStreamRef = useRef<MediaStream | null>(null); 
+    const originalTracksRef = useRef<{ video?: MediaStreamTrack; audio?: MediaStreamTrack }>({});
 
     const handleScreenSharingToggle = async () => {
         const participant = participantsRef.current[userData.sessionId];
@@ -195,16 +193,10 @@ const Conference: React.FC<ConferenceProps> = ({
                 const screenTrack = displayStream.getVideoTracks()[0];
                 const micTrack = micStream.getAudioTracks()[0];
 
-                const prevVideoTrack = videoSender.track;
-                const prevAudioTrack = audioSender.track;
-
-                setVideoTracks(prev => ({
-                    ...prev,
-                    [userData.sessionId]: {
-                        video: prevVideoTrack,
-                        audio: prevAudioTrack,
-                    }
-                }));
+                originalTracksRef.current = {
+                    video: videoSender.track ?? undefined,
+                    audio: audioSender.track ?? undefined
+                };
 
                 await videoSender.replaceTrack(screenTrack);
                 await audioSender.replaceTrack(micTrack);
@@ -214,9 +206,11 @@ const Conference: React.FC<ConferenceProps> = ({
 
                 setScreenSharing(true);
 
-                screenTrack.onended = () => {
-                    stopScreenSharing();
-                };
+                screenTrack.addEventListener("ended", () => {
+                    if (screenSharing) {
+                        handleScreenSharingToggle();
+                    }
+                });
             } catch (err) {
                 console.error("화면 공유 시작 오류:", err);
             }
@@ -225,23 +219,29 @@ const Conference: React.FC<ConferenceProps> = ({
         }
 
         async function stopScreenSharing() {
-            const prevTracks = videoTracks[userData.sessionId];
-            if (prevTracks?.video) await videoSender.replaceTrack(prevTracks.video);
-            if (prevTracks?.audio) await audioSender.replaceTrack(prevTracks.audio);
+            const original = originalTracksRef.current;
+
+            if (original.video) {
+                await videoSender.replaceTrack(original.video);
+            }
+            if (original.audio) {
+                await audioSender.replaceTrack(original.audio);
+            }
+
+            if (displayStreamRef.current) {
+                displayStreamRef.current.getTracks().forEach(track => track.stop());
+                displayStreamRef.current = null;
+            }
 
             const localVideoEl = videoRefs.current[userData.sessionId]?.current;
             if (localVideoEl && localStreamRef.current) {
                 localVideoEl.srcObject = localStreamRef.current;
             }
 
-            // ✅ displayStream이 살아 있으면 stop
-            if (displayStreamRef.current) {
-                displayStreamRef.current.getTracks().forEach(track => track.stop());
-                displayStreamRef.current = null;
-            }
+            originalTracksRef.current = {};
 
             setScreenSharing(false);
-        }
+            }
     };
 
     const replaceAudioTrack = async (newDeviceId: string) => {
@@ -276,9 +276,9 @@ const Conference: React.FC<ConferenceProps> = ({
     };
 
     const handleMicDeviceChange = (deviceId: string) => {
-        if (deviceId === selectedMicId) return; // 이미 선택된 장치면 무시
+        if (deviceId === selectedMicId) return;
         setSelectedMicId(deviceId);
-        replaceAudioTrack(deviceId); // 실제 트랙 교체 함수
+        replaceAudioTrack(deviceId);
     };
     const replaceVideoTrack = async (newDeviceId: string) => {
         const participant = participantsRef.current[userData.sessionId];
@@ -310,9 +310,9 @@ const Conference: React.FC<ConferenceProps> = ({
     };
 
     const handleVideoDeviceChange = (deviceId: string) => {
-        if (deviceId === selectedVideoId) return; // 중복 방지
+        if (deviceId === selectedVideoId) return;
         setSelectedVideoId(deviceId);
-        replaceVideoTrack(deviceId); // 트랙 교체 로직 호출
+        replaceVideoTrack(deviceId);
     };
 
 
@@ -369,14 +369,20 @@ const Conference: React.FC<ConferenceProps> = ({
 
     const [participants, setParticipants] = useState<{ [sessionId: string]: Participant }>({});
     const participantsRef = useRef<{ [sessionId: string]: Participant }>({});
+    const sortedSpeakerIds = useMemo(() => {
+    const ids = Object.keys(participants);
+        if (!topSpeaker?.id) return ids;
+        return [
+            topSpeaker.id,
+            ...ids.filter(id => id !== topSpeaker.id)
+        ];
+    }, [participants, topSpeaker]);
     const [roomLeader, setRoomLeader] = useState<{ sessionId: string; username: string }>({ sessionId: '', username: ''});
     const [recordedFiles, setRecordedFiles] = useState<RecordedFile[]>([]);
     const [elapsed, setElapsed] = useState(0); //녹화 시간 저장
     const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
     const [granted, setGranted] = useState<boolean | null>(null);
 
-
-    
     const [participantVolumes, setParticipantVolumes] = useState<Record<string, number>>({});
     const handleVolumeChange = (sessionId: string, newVolume: number) => {
         setParticipantVolumes(prev => ({ ...prev, [sessionId]: newVolume }));
@@ -440,7 +446,7 @@ const Conference: React.FC<ConferenceProps> = ({
             ws.current.send(JSON.stringify(message));
         };
 
-        // ✅ 브라우저 닫기/새로고침 시 exitRoom 전송
+        // 브라우저 닫기/새로고침 시 exitRoom 전송
         const handleBeforeUnload = () => {
             if (ws.current && ws.current.readyState === WebSocket.OPEN) {
                 const exitMessage = {
@@ -483,6 +489,7 @@ const Conference: React.FC<ConferenceProps> = ({
                     break;
                 case 'exitRoom':
                     userLeft(parsedMessage);
+                    
                     break;
                 case 'leaderChanged':
                     handleLeaderChanged(parsedMessage);
@@ -499,9 +506,6 @@ const Conference: React.FC<ConferenceProps> = ({
                 case 'videoStateChange':
                     handleVideoStateChange(parsedMessage);
                     break;
-                // case 'sendPrivateEmoji': //비공개 이모지
-                //     handleEmojiMessage(parsedMessage, true);
-                //     break;
                 case 'sendPublicEmoji': //공개 이모지
                     handleEmojiMessage(parsedMessage);
                     break;
@@ -528,8 +532,6 @@ const Conference: React.FC<ConferenceProps> = ({
                     stop();
                     finalizeRecordingSession();
                     break;
-                // case 'saveRecording': // 녹화본 다운로드
-                //     break;
                 case 'pauseRecording': // 녹화 일시정지
                     pause();
                     setRecordingPaused(true);
@@ -632,7 +634,7 @@ const Conference: React.FC<ConferenceProps> = ({
             }));
         }
 
-        // 💡 렌더링 이후까지 기다렸다가 비디오 연결 시도
+        // 렌더링 이후까지 기다렸다가 비디오 연결 시도
         setTimeout(() => {
             const videoElement = videoRefs.current[sender.sessionId]?.current;
 
@@ -666,7 +668,7 @@ const Conference: React.FC<ConferenceProps> = ({
                 }
                 });
             });
-        }, 1000); // 💡 100ms 정도의 짧은 지연
+        }, 1000); // 100ms 정도의 짧은 지연
     };
 
 
@@ -718,8 +720,17 @@ const Conference: React.FC<ConferenceProps> = ({
         console.log("videoRefs.current[msg.sessionId]",videoRefs.current[msg.sessionId]);
         const localVideoRef = videoRefs.current[msg.sessionId];
 
+        const VIDEO_CONSTRAINTS = {
+            width: { ideal: 320, max: 320 },
+            height: { ideal: 240, max: 240 },
+            frameRate: { ideal: 10, max: 10 }
+        };
+
         // getUserMedia → WebRTC 연결
-        navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+        navigator.mediaDevices.getUserMedia({ 
+            audio: true, 
+            video: VIDEO_CONSTRAINTS 
+        })
             .then((stream) => {
                  // 스트림 전역에 저장
                 localStreamRef.current = stream;
@@ -738,10 +749,6 @@ const Conference: React.FC<ConferenceProps> = ({
                         console.warn(`[Participant ${msg.sessionId}] video element not ready yet.`);
                     }
                 }, 100); // 100ms 딜레이 (필요에 따라 조절)
-
-                // if (localVideoRef.current) {
-                //     localVideoRef.current.srcObject = stream;
-                // }
 
                 const options = {
                     configuration: {iceServers: iceServers},
@@ -878,6 +885,7 @@ const Conference: React.FC<ConferenceProps> = ({
         }
 
         console.log("👋 사용자 퇴장 처리 시작:", participant.username);
+        addSystemMessage(`${participant.username}님이 퇴장했습니다.`);
 
         // 1. WebRTC 연결 정리
         participant.dispose();
@@ -1143,7 +1151,7 @@ const Conference: React.FC<ConferenceProps> = ({
                     />
                     );
                 })} */}
-                <ParticipantVideoGroup $cols={sortedSpeakerIds.length-1}>
+                <ParticipantVideoGroup>
                 {sortedSpeakerIds.map((sessionId, index) => {
                     
                     const participant = participants[sessionId];
@@ -1164,7 +1172,7 @@ const Conference: React.FC<ConferenceProps> = ({
                         mySessionId={userData.sessionId}
                         emojiName={emojiMessages.find(msg => msg.sessionId === sessionId)?.emoji}
                         onSpeakingScoreChange={(score) => handleSpeakingScoreChange(sessionId, score)}
-                        className={isMain ? 'main-video' : 'sub-video'} // ⬅️ 스타일 구분
+                        className={isMain ? 'main-video' : 'sub-video'}
                         volume={volume}
                     />
                     );

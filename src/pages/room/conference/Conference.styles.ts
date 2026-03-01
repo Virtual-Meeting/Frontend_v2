@@ -42,18 +42,33 @@ export const GalleryWrapper = styled.div`
     height:100%;
 `;
 
-export const ParticipantVideoGroup = styled.div<{ $cols: number }>`
+// export const ParticipantVideoGroup = styled.div<{ $cols: number }>`
+//     display: grid;
+//     grid-template-columns: ${({ $cols }) => `repeat(${Math.max($cols, 1)}, 1fr)`};
+//     // grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+//     // grid-auto-rows: auto;
+//     gap: ${({theme})=>theme.spacings.xs};
+//     width: 100%;
+//     max-width: ${({ $cols }) => {
+//         if ($cols === 2 || $cols === 3) return '60%';
+//         if ($cols === 4) return '80%';
+//         return '95%';
+//     }};
+//     justify-items: center;
+//     align-items: start;
+// `;
+
+export const ParticipantVideoGroup = styled.div`
   display: grid;
-  grid-template-columns: ${({ $cols }) => `repeat(${Math.max($cols, 1)}, 1fr)`};
-  grid-auto-rows: auto;
-  gap: ${({theme})=>theme.spacings.xs};
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: ${({ theme }) => theme.spacings.xs};
+
   width: 100%;
-  max-width: ${({ $cols }) => {
-    if ($cols === 2 || $cols === 3) return '60%';
-    if ($cols === 4) return '80%';
-    return '95%';
-  }};
+  min-height: 60vh;
+
+  justify-content: center;
+  align-content: start;
+
   justify-items: center;
   align-items: start;
 `;
-

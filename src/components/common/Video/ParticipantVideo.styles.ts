@@ -13,12 +13,17 @@ export const ParticipantContainer = styled.div<{ isPreview?: boolean, isSpeaking
 `;
 
 export const StyledVideo = styled.video`
+  position: absolute;   /* 🔥 추가 */
+  inset: 0;             /* 🔥 추가 */
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;       /* 🔥 안정화 */
 `;
 
 export const Placeholder = styled.div<{ isPreview?: boolean, bgColor?: string }>`
+  position: absolute;     /* 🔥 추가 */
+  inset: 0;               /* 🔥 추가 */
   width: 100%;
   height: 100%;
   background-color: #444;

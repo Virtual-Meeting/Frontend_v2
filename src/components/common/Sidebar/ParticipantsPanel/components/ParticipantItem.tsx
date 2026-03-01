@@ -27,7 +27,7 @@ const ParticipantItem: React.FC<Props> = ({ participant, isHandRaised, isCurrent
 
   const handleToggleMute = () => {
     // 음소거 토글 로직
-    alert(`마이크 음소거 토글 - ${participant.username}`);
+    alert(`마이크 음소거 토글 - ${participant.sessionId}`);
   };
 
   const handleToggleVideoOff = () => {
