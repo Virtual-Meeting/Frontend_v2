@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as kurentoUtils from 'kurento-utils';
 import fixWebmDuration from 'webm-duration-fix';
@@ -101,6 +101,7 @@ const Conference: React.FC<ConferenceProps> = ({
     //참가자 점수 저장
     const [speakingScores, setSpeakingScores] = useState<{ [id: string]: number }>({});
     const [firstSpokenTimestamps, setFirstSpokenTimestamps] = useState<{ [id: string]: number }>({});
+    
 
     const handleMicListToggle = () => {
         setMicListVisible(prev => {
@@ -131,10 +132,6 @@ const Conference: React.FC<ConferenceProps> = ({
     };
     const topSpeaker = useTopSpeaker(speakingScores);
     const topSpeakerRef = useRef(topSpeaker);
-    const sortedSpeakerIds = useSortedSpeakers(speakingScores, firstSpokenTimestamps);
-
-
-    
 
     const handleMicToggle = () => {
         const newMicState = !micOn;
@@ -372,14 +369,20 @@ const Conference: React.FC<ConferenceProps> = ({
 
     const [participants, setParticipants] = useState<{ [sessionId: string]: Participant }>({});
     const participantsRef = useRef<{ [sessionId: string]: Participant }>({});
+    const sortedSpeakerIds = useMemo(() => {
+    const ids = Object.keys(participants);
+        if (!topSpeaker?.id) return ids;
+        return [
+            topSpeaker.id,
+            ...ids.filter(id => id !== topSpeaker.id)
+        ];
+    }, [participants, topSpeaker]);
     const [roomLeader, setRoomLeader] = useState<{ sessionId: string; username: string }>({ sessionId: '', username: ''});
     const [recordedFiles, setRecordedFiles] = useState<RecordedFile[]>([]);
     const [elapsed, setElapsed] = useState(0); //녹화 시간 저장
     const [pendingSessionId, setPendingSessionId] = useState<string | null>(null);
     const [granted, setGranted] = useState<boolean | null>(null);
 
-
-    
     const [participantVolumes, setParticipantVolumes] = useState<Record<string, number>>({});
     const handleVolumeChange = (sessionId: string, newVolume: number) => {
         setParticipantVolumes(prev => ({ ...prev, [sessionId]: newVolume }));
@@ -1148,7 +1151,7 @@ const Conference: React.FC<ConferenceProps> = ({
                     />
                     );
                 })} */}
-                <ParticipantVideoGroup $cols={sortedSpeakerIds.length-1}>
+                <ParticipantVideoGroup>
                 {sortedSpeakerIds.map((sessionId, index) => {
                     
                     const participant = participants[sessionId];

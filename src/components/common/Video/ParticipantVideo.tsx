@@ -94,7 +94,9 @@ const ParticipantVideo = forwardRef<HTMLVideoElement, Props>(
           autoPlay
           playsInline
           muted={isPreview ? false : sessionId === mySessionId || !isAudioOn}
-          style={{ display: isVideoOn ? "block" : "none" }}
+          width="16"
+          height="9"
+          style={{opacity: isVideoOn ? 1 : 0}}
           onLoadedMetadata={handleLoadedMetadata}
         />
 

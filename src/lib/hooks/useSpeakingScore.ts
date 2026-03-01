@@ -25,7 +25,15 @@ export default function useSpeakingScore(
         ? Math.min(scoreRef.current + increment, maxScore)
         : scoreRef.current * decayRate;
 
-      setScore(Math.round(scoreRef.current));
+        const newScore = Math.round(scoreRef.current);
+
+        setScore(prev => {
+          if (Math.abs(prev - newScore) < 3) {
+            return prev;
+          }
+          return newScore;
+        });
+      // setScore(Math.round(scoreRef.current));
     }, intervalMs);
 
     return () => clearInterval(interval);
