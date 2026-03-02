@@ -102,6 +102,9 @@ const Conference: React.FC<ConferenceProps> = ({
     const [speakingScores, setSpeakingScores] = useState<{ [id: string]: number }>({});
     const [firstSpokenTimestamps, setFirstSpokenTimestamps] = useState<{ [id: string]: number }>({});
     
+    //cnadidateQueue 
+    const iceCandidateQueue = useRef<Map<string, RTCIceCandidate[]>>(new Map());
+    
 
     const handleMicListToggle = () => {
         setMicListVisible(prev => {
@@ -605,184 +608,439 @@ const Conference: React.FC<ConferenceProps> = ({
         sendExistingUsers(response);
     }
 
+    // const receiveVideo = (sender) => {
+    //     let participant = participantsRef.current[sender.sessionId];
+
+    //     if (!participant) {
+    //         participant = new Participant(sender.sessionId, sender.username, sendMessage, sender.videoOn, sender.audioOn);
+
+    //         // 비디오 ref 등록
+    //         if (!videoRefs.current[sender.sessionId]) {
+    //             videoRefs.current[sender.sessionId] = React.createRef<HTMLVideoElement>();
+    //         }
+    //         console.log("videoRefs.current[sender.sessionId]",videoRefs.current[sender.sessionId]);
+
+    //         participantsRef.current[sender.sessionId] = participant;
+    //         setParticipants(prev => ({
+    //             ...prev,
+    //             [sender.sessionId]: participant
+    //         }));
+
+    //         setParticipantVolumes(prev => {
+    //             if (prev[sender.sessionId] !== undefined) return prev; // 이미 있으면 건너뜀
+    //             return { ...prev, [sender.sessionId]: 50 };
+    //         });
+
+    //         setSpeakingScores(prev => ({
+    //             ...prev,
+    //             [sender.sessionId]: 0
+    //         }));
+    //     }
+
+    //     // 렌더링 이후까지 기다렸다가 비디오 연결 시도
+    //     setTimeout(() => {
+    //         const videoElement = videoRefs.current[sender.sessionId]?.current;
+
+    //         if (!videoElement) {
+    //             console.warn("❗ 비디오 요소가 아직 준비되지 않았습니다:", sender.sessionId);
+    //             return;
+    //         }
+
+    //         const options = {
+    //             configuration: { iceServers },
+    //             remoteVideo: videoElement,
+    //             onicecandidate: participant.onIceCandidate.bind(participant),
+    //         };
+
+    //         participant.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly(options, function (error) {
+    //             if (error) {
+    //                 console.error("WebRtcPeerRecvonly 생성 실패:", error);
+    //                 return;
+    //             }
+
+    //             this.generateOffer(participant.offerToReceiveVideo.bind(participant));
+    //             participant.rtcPeer.peerConnection.addEventListener("track", (event) => {
+    //             console.log(`[Participant ${participant.sessionId}] 트랙 추가됨: ${event.track.kind}`);
+
+    //             const remoteStream = event.streams[0]; // 트랙이 포함된 MediaStream
+
+    //             const videoEl = videoRefs.current[participant.sessionId]?.current;
+    //             if (videoEl && !videoEl.srcObject) {
+    //                 videoEl.srcObject = remoteStream;
+    //                 console.log(`[Participant ${participant.sessionId}] video.srcObject에 remoteStream 할당됨`);
+    //             }
+    //             });
+    //         });
+    //     }, 1000); // 100ms 정도의 짧은 지연
+    // };
+
+
+    // const receiveVideo = (sender) => {
+    //     let participant = participantsRef.current[sender.sessionId];
+
+    //     if (!videoRefs.current[sender.sessionId]) {
+    //         videoRefs.current[sender.sessionId] = React.createRef<HTMLVideoElement>();
+    //     }
+
+    //     if (!participant) {
+    //         participant = new Participant(
+    //         sender.sessionId,
+    //         sender.username,
+    //         sendMessage,
+    //         sender.videoOn,
+    //         sender.audioOn
+    //         );
+
+    //         participantsRef.current[sender.sessionId] = participant;
+
+    //         setParticipants(prev => ({
+    //         ...prev,
+    //         [sender.sessionId]: participant
+    //         }));
+    //     }
+
+    //     const tryCreatePeer = () => {
+    //         const videoElement = videoRefs.current[sender.sessionId]?.current;
+
+    //         if (!videoElement) {
+    //             requestAnimationFrame(tryCreatePeer);
+    //             return;
+    //         }
+
+    //         const options = {
+    //         configuration: { iceServers },
+    //         remoteVideo: videoElement,
+    //         onicecandidate: participant.onIceCandidate.bind(participant),
+    //         };
+
+    //         participant.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly(options, function (error) {
+    //             if (error) {
+    //             console.error("WebRtcPeerRecvonly 생성 실패:", error);
+    //             return;
+    //             }
+    //             this.generateOffer(
+    //                 participant.offerToReceiveVideo.bind(participant)
+    //             );
+    //         });
+    //     };
+
+    //     tryCreatePeer();
+    //     };
+
     const receiveVideo = (sender) => {
         let participant = participantsRef.current[sender.sessionId];
 
-        if (!participant) {
-            participant = new Participant(sender.sessionId, sender.username, sendMessage, sender.videoOn, sender.audioOn);
+        if (!videoRefs.current[sender.sessionId]) {
+            videoRefs.current[sender.sessionId] = React.createRef<HTMLVideoElement>();
+        }
 
-            // 비디오 ref 등록
-            if (!videoRefs.current[sender.sessionId]) {
-                videoRefs.current[sender.sessionId] = React.createRef<HTMLVideoElement>();
-            }
-            console.log("videoRefs.current[sender.sessionId]",videoRefs.current[sender.sessionId]);
+        if (!participant) {
+            participant = new Participant(
+                sender.sessionId,
+                sender.username,
+                sendMessage,
+                sender.videoOn,
+                sender.audioOn
+            );
 
             participantsRef.current[sender.sessionId] = participant;
+
             setParticipants(prev => ({
                 ...prev,
                 [sender.sessionId]: participant
             }));
-
-            setParticipantVolumes(prev => {
-                if (prev[sender.sessionId] !== undefined) return prev; // 이미 있으면 건너뜀
-                return { ...prev, [sender.sessionId]: 50 };
-            });
-
-            setSpeakingScores(prev => ({
-                ...prev,
-                [sender.sessionId]: 0
-            }));
         }
 
-        // 렌더링 이후까지 기다렸다가 비디오 연결 시도
-        setTimeout(() => {
+        let retryCount = 0;
+        const MAX_RETRY = 120; // 약 2초 (60fps 기준)
+
+        const tryCreatePeer = () => {
             const videoElement = videoRefs.current[sender.sessionId]?.current;
 
             if (!videoElement) {
-                console.warn("❗ 비디오 요소가 아직 준비되지 않았습니다:", sender.sessionId);
+                if (retryCount >= MAX_RETRY) {
+                    console.warn("video element mount 실패:", sender.sessionId);
+                    return;
+                }
+
+                retryCount++;
+                requestAnimationFrame(tryCreatePeer);
                 return;
             }
 
+            if (participant.rtcPeer) return;
+            
+            createPeer(videoElement);
+        };
+
+        const createPeer = (videoElement: HTMLVideoElement) => {
             const options = {
                 configuration: { iceServers },
                 remoteVideo: videoElement,
                 onicecandidate: participant.onIceCandidate.bind(participant),
             };
 
-            participant.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly(options, function (error) {
-                if (error) {
-                    console.error("WebRtcPeerRecvonly 생성 실패:", error);
-                    return;
-                }
+            participant.rtcPeer =
+                new kurentoUtils.WebRtcPeer.WebRtcPeerRecvonly(options, function (error) {
+                    if (error) {
+                        console.error("WebRtcPeerRecvonly 생성 실패:", error);
+                        return;
+                    }
 
-                this.generateOffer(participant.offerToReceiveVideo.bind(participant));
-                participant.rtcPeer.peerConnection.addEventListener("track", (event) => {
-                console.log(`[Participant ${participant.sessionId}] 트랙 추가됨: ${event.track.kind}`);
-
-                const remoteStream = event.streams[0]; // 트랙이 포함된 MediaStream
-
-                const videoEl = videoRefs.current[participant.sessionId]?.current;
-                if (videoEl && !videoEl.srcObject) {
-                    videoEl.srcObject = remoteStream;
-                    console.log(`[Participant ${participant.sessionId}] video.srcObject에 remoteStream 할당됨`);
-                }
+                    this.generateOffer(
+                        participant.offerToReceiveVideo.bind(participant)
+                    );
                 });
-            });
-        }, 1000); // 100ms 정도의 짧은 지연
-    };
 
+            participant.rtcPeer.peerConnection.addEventListener(
+                "connectionstatechange",
+                () => {
+                    const state = participant.rtcPeer.peerConnection.connectionState;
+
+                    if (state === "connected") {
+                        flushCandidateQueue(sender.sessionId);
+                    }
+
+                    if (state === "failed") {
+                        console.warn("WebRTC 연결 실패:", sender.sessionId);
+                        participant.dispose();
+                    }
+                }
+            );
+        };
+
+        tryCreatePeer();
+    };
 
     const newUserJoined = (msg) => {
         receiveVideo(msg);
     }
 
+    // const sendExistingUsers = (msg) => {
+    //     const participant = new Participant(msg.sessionId, msg.username,sendMessage, msg.videoOn, msg.audioOn);
+    //     participantsRef.current[msg.sessionId] = participant;
+
+    //     setRoomLeader({
+    //         sessionId: msg.roomLeaderId,
+    //         username: msg.roomLeaderName,
+    //     });
+
+    //     setParticipants(prev => ({
+    //         ...prev,
+    //         [msg.sessionId]: participant
+    //     }));
+
+    //     setParticipantVolumes(prev => {
+    //         if (prev[msg.sessionId] !== undefined) return prev; // 이미 있으면 건너뜀
+    //         return { ...prev, [msg.sessionId]: 50 };
+    //     });
+
+
+    //     setSpeakingScores(prev => ({
+    //         ...prev,
+    //         [msg.sessionId]: 0
+    //     }));
+
+    //     setUserData((prevData) => ({
+    //         ...prevData,
+    //         sessionId: msg.sessionId,
+    //     }));
+
+    //     if (msg.roomId) {
+    //         addSystemMessage(`📢 현재 방 코드: ${msg.roomId}`);
+    //     } else if (userData.roomId) {
+    //         addSystemMessage(`📢 현재 방 코드: ${userData.roomId}`);
+    //     }
+        
+
+    //     if (!videoRefs.current[msg.sessionId]) {
+    //         videoRefs.current[msg.sessionId] = React.createRef<HTMLVideoElement>();
+    //     }
+        
+    //     console.log("videoRefs.current[msg.sessionId]",videoRefs.current[msg.sessionId]);
+    //     const localVideoRef = videoRefs.current[msg.sessionId];
+
+    //     const VIDEO_CONSTRAINTS = {
+    //         width: { ideal: 320, max: 320 },
+    //         height: { ideal: 240, max: 240 },
+    //         frameRate: { ideal: 10, max: 10 }
+    //     };
+
+    //     // getUserMedia → WebRTC 연결
+    //     navigator.mediaDevices.getUserMedia({ 
+    //         audio: true, 
+    //         video: VIDEO_CONSTRAINTS 
+    //     })
+    //         .then((stream) => {
+    //              // 스트림 전역에 저장
+    //             localStreamRef.current = stream;
+
+    //             // 현재 오디오/비디오 상태 반영
+    //             stream.getAudioTracks().forEach(track => (track.enabled = micOn));
+    //             stream.getVideoTracks().forEach(track => (track.enabled = videoOn));
+
+    //             // 비디오 엘리먼트가 렌더링되고 ref가 연결될 때까지 잠시 딜레이
+    //             setTimeout(() => {
+    //                 const localVideoEl = videoRefs.current[msg.sessionId]?.current;
+    //                 if (localVideoEl) {
+    //                     localVideoEl.srcObject = stream;
+    //                     console.log(`[Participant ${msg.sessionId}] video.srcObject set.`);
+    //                 } else {
+    //                     console.warn(`[Participant ${msg.sessionId}] video element not ready yet.`);
+    //                 }
+    //             }, 100); // 100ms 딜레이 (필요에 따라 조절)
+
+    //             const options = {
+    //                 configuration: {iceServers: iceServers},
+    //                 localVideo: stream,
+    //                 mediaConstraints: { audio: true, video: true },
+    //                 onicecandidate: participant.onIceCandidate.bind(participant),
+    //             };
+
+    //             participant.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendonly(options, function (error: any) {
+    //                 if (error) {
+    //                     return console.error("WebRtcPeerSendonly 생성 오류:", error);
+    //                 }
+
+    //                 this.peerConnection.addEventListener("iceconnectionstatechange", () => {
+    //                     console.log(`ICE 상태: ${this.peerConnection.iceConnectionState}`);
+    //                 });
+
+    //                 this.generateOffer(participant.offerToReceiveVideo.bind(participant));
+    //             });
+    //             // 기존 참가자 목록 처리
+    //             if (msg.participants && Array.isArray(msg.participants)) {
+    //                 msg.participants.forEach((existingParticipantInfo) => {
+    //                     // 기존 참가자 처리
+    //                     const existingParticipant = parseParticipant(existingParticipantInfo);
+
+    //                     // 기존 참가자에게 비디오 수신 설정
+    //                     receiveVideo(existingParticipant);
+    //                 });
+    //             }
+    //         })
+    //         .catch((error) => {
+    //             console.error("로컬 미디어 접근 오류:", error);
+    //         });        
+    // }
+
     const sendExistingUsers = (msg) => {
-        const participant = new Participant(msg.sessionId, msg.username,sendMessage, msg.videoOn, msg.audioOn);
-        participantsRef.current[msg.sessionId] = participant;
+    const participant = new Participant(
+        msg.sessionId,
+        msg.username,
+        sendMessage,
+        msg.videoOn,
+        msg.audioOn
+    );
 
-        setRoomLeader({
-            sessionId: msg.roomLeaderId,
-            username: msg.roomLeaderName,
-        });
+    participantsRef.current[msg.sessionId] = participant;
 
-        setParticipants(prev => ({
-            ...prev,
-            [msg.sessionId]: participant
-        }));
+    setRoomLeader({
+        sessionId: msg.roomLeaderId,
+        username: msg.roomLeaderName,
+    });
 
-        setParticipantVolumes(prev => {
-            if (prev[msg.sessionId] !== undefined) return prev; // 이미 있으면 건너뜀
-            return { ...prev, [msg.sessionId]: 50 };
-        });
+    setParticipants(prev => ({
+        ...prev,
+        [msg.sessionId]: participant
+    }));
 
+    setParticipantVolumes(prev => {
+        if (prev[msg.sessionId] !== undefined) return prev;
+        return { ...prev, [msg.sessionId]: 50 };
+    });
 
-        setSpeakingScores(prev => ({
-            ...prev,
-            [msg.sessionId]: 0
-        }));
+    setSpeakingScores(prev => ({
+        ...prev,
+        [msg.sessionId]: 0
+    }));
 
-        setUserData((prevData) => ({
-            ...prevData,
-            sessionId: msg.sessionId,
-        }));
+    setUserData(prevData => ({
+        ...prevData,
+        sessionId: msg.sessionId,
+    }));
 
-        if (msg.roomId) {
-            addSystemMessage(`📢 현재 방 코드: ${msg.roomId}`);
-        } else if (userData.roomId) {
-            addSystemMessage(`📢 현재 방 코드: ${userData.roomId}`);
-        }
-        
+    if (msg.roomId) {
+        addSystemMessage(`📢 현재 방 코드: ${msg.roomId}`);
+    } else if (userData.roomId) {
+        addSystemMessage(`📢 현재 방 코드: ${userData.roomId}`);
+    }
 
-        if (!videoRefs.current[msg.sessionId]) {
-            videoRefs.current[msg.sessionId] = React.createRef<HTMLVideoElement>();
-        }
-        
-        console.log("videoRefs.current[msg.sessionId]",videoRefs.current[msg.sessionId]);
-        const localVideoRef = videoRefs.current[msg.sessionId];
+    if (!videoRefs.current[msg.sessionId]) {
+        videoRefs.current[msg.sessionId] = React.createRef<HTMLVideoElement>();
+    }
 
-        const VIDEO_CONSTRAINTS = {
-            width: { ideal: 320, max: 320 },
-            height: { ideal: 240, max: 240 },
-            frameRate: { ideal: 10, max: 10 }
+    const VIDEO_CONSTRAINTS = {
+        width: { ideal: 320, max: 320 },
+        height: { ideal: 240, max: 240 },
+        frameRate: { ideal: 10, max: 10 }
+    };
+
+    navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: VIDEO_CONSTRAINTS
+    })
+    .then((stream) => {
+
+        localStreamRef.current = stream;
+
+        stream.getAudioTracks().forEach(track => (track.enabled = micOn));
+        stream.getVideoTracks().forEach(track => (track.enabled = videoOn));
+
+        // 🔥 setTimeout 제거 → ref 준비될 때까지 대기
+        const attachLocalVideo = () => {
+            const localVideoEl = videoRefs.current[msg.sessionId]?.current;
+
+            if (!localVideoEl) {
+                requestAnimationFrame(attachLocalVideo);
+                return;
+            }
+
+            localVideoEl.srcObject = stream;
+            console.log(`[Participant ${msg.sessionId}] video.srcObject set.`);
         };
 
-        // getUserMedia → WebRTC 연결
-        navigator.mediaDevices.getUserMedia({ 
-            audio: true, 
-            video: VIDEO_CONSTRAINTS 
-        })
-            .then((stream) => {
-                 // 스트림 전역에 저장
-                localStreamRef.current = stream;
+        attachLocalVideo();
 
-                // 현재 오디오/비디오 상태 반영
-                stream.getAudioTracks().forEach(track => (track.enabled = micOn));
-                stream.getVideoTracks().forEach(track => (track.enabled = videoOn));
+        const options = {
+            configuration: { iceServers },
+            localVideo: stream,
+            mediaConstraints: { audio: true, video: true },
+            onicecandidate: participant.onIceCandidate.bind(participant),
+        };
 
-                // 비디오 엘리먼트가 렌더링되고 ref가 연결될 때까지 잠시 딜레이
-                setTimeout(() => {
-                    const localVideoEl = videoRefs.current[msg.sessionId]?.current;
-                    if (localVideoEl) {
-                        localVideoEl.srcObject = stream;
-                        console.log(`[Participant ${msg.sessionId}] video.srcObject set.`);
-                    } else {
-                        console.warn(`[Participant ${msg.sessionId}] video element not ready yet.`);
-                    }
-                }, 100); // 100ms 딜레이 (필요에 따라 조절)
-
-                const options = {
-                    configuration: {iceServers: iceServers},
-                    localVideo: stream,
-                    mediaConstraints: { audio: true, video: true },
-                    onicecandidate: participant.onIceCandidate.bind(participant),
-                };
-
-                participant.rtcPeer = new kurentoUtils.WebRtcPeer.WebRtcPeerSendonly(options, function (error: any) {
-                    if (error) {
-                        return console.error("WebRtcPeerSendonly 생성 오류:", error);
-                    }
-
-                    this.peerConnection.addEventListener("iceconnectionstatechange", () => {
-                        console.log(`ICE 상태: ${this.peerConnection.iceConnectionState}`);
-                    });
-
-                    this.generateOffer(participant.offerToReceiveVideo.bind(participant));
-                });
-                // 기존 참가자 목록 처리
-                if (msg.participants && Array.isArray(msg.participants)) {
-                    msg.participants.forEach((existingParticipantInfo) => {
-                        // 기존 참가자 처리
-                        const existingParticipant = parseParticipant(existingParticipantInfo);
-
-                        // 기존 참가자에게 비디오 수신 설정
-                        receiveVideo(existingParticipant);
-                    });
+        participant.rtcPeer =
+            new kurentoUtils.WebRtcPeer.WebRtcPeerSendonly(options, function (error: any) {
+                if (error) {
+                    console.error("WebRtcPeerSendonly 생성 오류:", error);
+                    return;
                 }
-            })
-            .catch((error) => {
-                console.error("로컬 미디어 접근 오류:", error);
-            });        
-    }
+
+                this.peerConnection.addEventListener("iceconnectionstatechange", () => {
+                    console.log(`ICE 상태: ${this.peerConnection.iceConnectionState}`);
+                });
+
+                this.generateOffer(
+                    participant.offerToReceiveVideo.bind(participant)
+                );
+
+                // 🔥 여기 추가
+                flushCandidateQueue(msg.sessionId);
+
+            });
+
+        // 기존 참가자 목록 처리
+        if (msg.participants && Array.isArray(msg.participants)) {
+            msg.participants.forEach(existingParticipantInfo => {
+                const existingParticipant = parseParticipant(existingParticipantInfo);
+                receiveVideo(existingParticipant);
+            });
+        }
+    })
+    .catch((error) => {
+        console.error("로컬 미디어 접근 오류:", error);
+    });
+};
 
     const parseParticipant = (participantInfo) => {
         // 문자열이면 JSON 파싱
@@ -834,35 +1092,74 @@ const Conference: React.FC<ConferenceProps> = ({
                 return;
             }
             console.log('SDP answer processed successfully');
+            flushCandidateQueue(result.sessionId);
         });
     };
 
+
+    // const onIceCandidate = (message: any) => {
+    //     const { sessionId, candidate } = message;
+    //     const participant = participantsRef.current[sessionId];
+
+    //     // 1. 참가자가 존재하는지 확인
+    //     if (!participant) {
+    //         console.error(`Participant with sessionId ${sessionId} does not exist.`);
+    //         return;
+    //     }
+
+    //     // 2. rtcPeer가 생성되지 않았다면, 초기화가 필요
+    //     if (!participant.rtcPeer) {
+    //         console.error(`rtcPeer is not initialized for participant ${sessionId}`);
+    //         return;
+    //     }
+
+    //     // 3. ICE 후보를 rtcPeer에 추가
+    //     const iceCandidate = new RTCIceCandidate(candidate);
+    //     participant.rtcPeer.addIceCandidate(iceCandidate, (error) => {
+    //         if (error) {
+    //             console.error('Failed to add ICE candidate:', error);
+    //         } else {
+    //             console.log('ICE candidate added for participant:', sessionId);
+    //         }
+    //     });
+    // };
 
     const onIceCandidate = (message: any) => {
         const { sessionId, candidate } = message;
         const participant = participantsRef.current[sessionId];
 
-        // 1. 참가자가 존재하는지 확인
-        if (!participant) {
-            console.error(`Participant with sessionId ${sessionId} does not exist.`);
-            return;
-        }
+        if (!participant) return;
 
-        // 2. rtcPeer가 생성되지 않았다면, 초기화가 필요
-        if (!participant.rtcPeer) {
-            console.error(`rtcPeer is not initialized for participant ${sessionId}`);
-            return;
-        }
-
-        // 3. ICE 후보를 rtcPeer에 추가
         const iceCandidate = new RTCIceCandidate(candidate);
-        participant.rtcPeer.addIceCandidate(iceCandidate, (error) => {
-            if (error) {
-                console.error('Failed to add ICE candidate:', error);
-            } else {
-                console.log('ICE candidate added for participant:', sessionId);
-            }
+
+        // if (!participant?.rtcPeer) {
+        //     if (!iceCandidateQueue.current[sessionId]) {
+        //     iceCandidateQueue.current[sessionId] = [];
+        //     }
+        //     iceCandidateQueue.current[sessionId].push(iceCandidate);
+        //     return;
+        // }
+
+        if (!participant?.rtcPeer) {
+            const queue = iceCandidateQueue.current.get(sessionId) ?? [];
+            queue.push(iceCandidate);
+            iceCandidateQueue.current.set(sessionId, queue);
+            return;
+        }
+
+        participant.rtcPeer.addIceCandidate(iceCandidate);
+    };
+
+    const flushCandidateQueue = (sessionId: string) => {
+        const participant = participantsRef.current[sessionId];
+        const queue = iceCandidateQueue.current.get(sessionId);
+        if (!participant?.rtcPeer || !queue) return;
+
+        queue.forEach(candidate => {
+            participant.rtcPeer.addIceCandidate(candidate);
         });
+
+        iceCandidateQueue.current.delete(sessionId);
     };
 
     const exitRoom = () => {
@@ -893,6 +1190,7 @@ const Conference: React.FC<ConferenceProps> = ({
         // 2. ref 객체에서 삭제
         delete participantsRef.current[sessionId];
         delete videoRefs.current[sessionId];
+        iceCandidateQueue.current.delete(sessionId);
 
         // 3. 상태에서 제거 → UI에서 사라짐
         setParticipants(prev => {
