@@ -247,6 +247,37 @@ const Conference: React.FC<ConferenceProps> = ({
             }
     };
 
+    // const replaceAudioTrack = async (newDeviceId: string) => {
+    //     const participant = participantsRef.current[userData.sessionId];
+    //     if (!participant?.rtcPeer) return;
+
+    //     const audioSender = participant.rtcPeer.peerConnection
+    //         .getSenders()
+    //         .find((s) => s.track?.kind === "audio");
+
+    //     if (!audioSender) return;
+
+    //     const newStream = await navigator.mediaDevices.getUserMedia({
+    //         audio: { deviceId: { exact: newDeviceId } }
+    //     });
+
+    //     const newAudioTrack = newStream.getAudioTracks()[0];
+    //     await audioSender.replaceTrack(newAudioTrack);
+
+    //     // 로컬 비디오 스트림에도 반영
+    //     const localStream = localStreamRef.current;
+    //     if (localStream) {
+    //         localStream.removeTrack(localStream.getAudioTracks()[0]);
+    //         localStream.addTrack(newAudioTrack);
+    //     }
+
+    //     // UI에서도 듣기 반영
+    //     const localVideoEl = videoRefs.current[userData.sessionId]?.current;
+    //     if (localVideoEl) {
+    //         localVideoEl.srcObject = localStream;
+    //     }
+    // };
+
     const replaceAudioTrack = async (newDeviceId: string) => {
         const participant = participantsRef.current[userData.sessionId];
         if (!participant?.rtcPeer) return;
@@ -254,27 +285,59 @@ const Conference: React.FC<ConferenceProps> = ({
         const audioSender = participant.rtcPeer.peerConnection
             .getSenders()
             .find((s) => s.track?.kind === "audio");
-
         if (!audioSender) return;
 
-        const newStream = await navigator.mediaDevices.getUserMedia({
-            audio: { deviceId: { exact: newDeviceId } }
-        });
+        // ✅ 1) 교체 전 기존 트랙 백업
+        const oldSenderTrack = audioSender.track ?? null;
 
-        const newAudioTrack = newStream.getAudioTracks()[0];
-        await audioSender.replaceTrack(newAudioTrack);
+        let newStream: MediaStream | null = null;
+        let replaced = false;
 
-        // 로컬 비디오 스트림에도 반영
-        const localStream = localStreamRef.current;
-        if (localStream) {
-            localStream.removeTrack(localStream.getAudioTracks()[0]);
-            localStream.addTrack(newAudioTrack);
-        }
+        try {
+            newStream = await navigator.mediaDevices.getUserMedia({
+            audio: { deviceId: { exact: newDeviceId } },
+            });
 
-        // UI에서도 듣기 반영
-        const localVideoEl = videoRefs.current[userData.sessionId]?.current;
-        if (localVideoEl) {
-            localVideoEl.srcObject = localStream;
+            const newAudioTrack = newStream.getAudioTracks()[0] ?? null;
+            if (!newAudioTrack) {
+            console.warn("[replaceAudioTrack] No audio track from getUserMedia");
+            return;
+            }
+
+            // ✅ 2) sender 트랙 교체
+            await audioSender.replaceTrack(newAudioTrack);
+            replaced = true;
+
+            // ✅ 3) 교체가 성공한 뒤에만 기존 트랙 stop (핵심)
+            oldSenderTrack?.stop();
+
+            // ✅ 4) localStreamRef에도 반영 + 기존 트랙 제거/stop
+            const localStream = localStreamRef.current;
+            if (localStream) {
+            localStream.getAudioTracks().forEach((t) => {
+                if (t !== newAudioTrack) {
+                localStream.removeTrack(t);
+                t.stop();
+                }
+            });
+
+            if (!localStream.getAudioTracks().includes(newAudioTrack)) {
+                localStream.addTrack(newAudioTrack);
+            }
+            }
+
+            // UI 반영
+            const localVideoEl = videoRefs.current[userData.sessionId]?.current;
+            if (localVideoEl) {
+            localVideoEl.srcObject = localStreamRef.current;
+            }
+        } catch (err) {
+            console.error("[replaceAudioTrack] failed:", err);
+        } finally {
+            // ✅ 교체 실패/중단이면 새로 연 stream은 닫아야 “새 장치 점유”가 남지 않음
+            if (!replaced) {
+            newStream?.getTracks().forEach((t) => t.stop());
+            }
         }
     };
 
@@ -283,6 +346,36 @@ const Conference: React.FC<ConferenceProps> = ({
         setSelectedMicId(deviceId);
         replaceAudioTrack(deviceId);
     };
+    // const replaceVideoTrack = async (newDeviceId: string) => {
+    //     const participant = participantsRef.current[userData.sessionId];
+    //     if (!participant?.rtcPeer) return;
+
+    //     const videoSender = participant.rtcPeer.peerConnection
+    //         .getSenders()
+    //         .find((s) => s.track?.kind === "video");
+
+    //     if (!videoSender) return;
+
+    //     const newStream = await navigator.mediaDevices.getUserMedia({
+    //         video: { deviceId: { exact: newDeviceId } }
+    //     });
+
+    //     const newVideoTrack = newStream.getVideoTracks()[0];
+    //     await videoSender.replaceTrack(newVideoTrack);
+
+    //     const localStream = localStreamRef.current;
+    //     if (localStream) {
+    //         localStream.removeTrack(localStream.getVideoTracks()[0]);
+    //         localStream.addTrack(newVideoTrack);
+    //     }
+
+    //     const localVideoEl = videoRefs.current[userData.sessionId]?.current;
+    //     if (localVideoEl) {
+    //         localVideoEl.srcObject = localStream;
+    //     }
+    // };
+
+
     const replaceVideoTrack = async (newDeviceId: string) => {
         const participant = participantsRef.current[userData.sessionId];
         if (!participant?.rtcPeer) return;
@@ -290,25 +383,58 @@ const Conference: React.FC<ConferenceProps> = ({
         const videoSender = participant.rtcPeer.peerConnection
             .getSenders()
             .find((s) => s.track?.kind === "video");
-
         if (!videoSender) return;
 
-        const newStream = await navigator.mediaDevices.getUserMedia({
-            video: { deviceId: { exact: newDeviceId } }
-        });
+        // ✅ 1) 교체 전 기존 트랙 백업
+        const oldSenderTrack = videoSender.track ?? null;
 
-        const newVideoTrack = newStream.getVideoTracks()[0];
-        await videoSender.replaceTrack(newVideoTrack);
+        let newStream: MediaStream | null = null;
+        let replaced = false;
 
-        const localStream = localStreamRef.current;
-        if (localStream) {
-            localStream.removeTrack(localStream.getVideoTracks()[0]);
-            localStream.addTrack(newVideoTrack);
-        }
+        try {
+            newStream = await navigator.mediaDevices.getUserMedia({
+            video: { deviceId: { exact: newDeviceId } },
+            });
 
-        const localVideoEl = videoRefs.current[userData.sessionId]?.current;
-        if (localVideoEl) {
-            localVideoEl.srcObject = localStream;
+            const newVideoTrack = newStream.getVideoTracks()[0] ?? null;
+            if (!newVideoTrack) {
+            console.warn("[replaceVideoTrack] No video track from getUserMedia");
+            return;
+            }
+
+            // ✅ 2) sender 트랙 교체
+            await videoSender.replaceTrack(newVideoTrack);
+            replaced = true;
+
+            // ✅ 3) 교체 성공 후 기존 트랙 stop (핵심)
+            oldSenderTrack?.stop();
+
+            // ✅ 4) localStreamRef에도 반영 + 기존 트랙 제거/stop
+            const localStream = localStreamRef.current;
+            if (localStream) {
+            localStream.getVideoTracks().forEach((t) => {
+                if (t !== newVideoTrack) {
+                localStream.removeTrack(t);
+                t.stop();
+                }
+            });
+
+            if (!localStream.getVideoTracks().includes(newVideoTrack)) {
+                localStream.addTrack(newVideoTrack);
+            }
+            }
+
+            const localVideoEl = videoRefs.current[userData.sessionId]?.current;
+            if (localVideoEl) {
+            localVideoEl.srcObject = localStreamRef.current;
+            }
+        } catch (err) {
+            console.error("[replaceVideoTrack] failed:", err);
+        } finally {
+            // ✅ 교체 실패/중단이면 새로 연 stream 정리
+            if (!replaced) {
+            newStream?.getTracks().forEach((t) => t.stop());
+            }
         }
     };
 
