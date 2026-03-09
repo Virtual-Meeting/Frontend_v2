@@ -1,5 +1,5 @@
 import styled, { css } from 'styled-components';
-import { ReactComponent as Logo } from 'assets/images/logo_main.svg';
+import Logo from 'assets/images/logo_main.svg?react';
 
 type HeaderProps = {
   variant?: 'default' | 'compact'; // default: 대기실, compact: 화상통화방

@@ -1,7 +1,7 @@
 import React from 'react';
 import { ToggleWrapper, Checkbox, Slider, IconWrapper } from './ToggleSwitch.styles';
-import { ReactComponent as LightIcon } from 'assets/icons/light.svg';
-import { ReactComponent as DarkIcon } from 'assets/icons/dark.svg';
+import LightIcon from 'assets/icons/light.svg?react';
+import DarkIcon from 'assets/icons/dark.svg?react';
 
 interface ToggleSwitchProps {
   checked: boolean;

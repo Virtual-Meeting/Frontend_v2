@@ -46,23 +46,17 @@ interface UserData {
     videoOn: boolean;
 }
 
-// const wsServerUrl = "wss://vmo.o-r.kr:8080";
-const wsServerUrl = "ws://localhost:8080";
+const wsServerUrl = import.meta.env.VITE_WS_SERVER_URL;
 
 const iceServers = [
-    { urls: "stuns:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    {
-        urls: "turn:vmo.o-r.kr:3478",
-        username: "user",
-        credential: "1234abcd"
-    },
-    {
-        urls: "turns:vmo.o-r.kr:5349",
-        username: "user",
-        credential: "1234abcd"
-    }
+  { urls: import.meta.env.VITE_STUN_SERVER_1 },
+  { urls: import.meta.env.VITE_STUN_SERVER_2 },
+  { urls: import.meta.env.VITE_STUN_SERVER_3 },
+  {
+    urls: import.meta.env.VITE_TURN_SERVER,
+    username: import.meta.env.VITE_TURN_USERNAME,
+    credential: import.meta.env.VITE_TURN_CREDENTIAL
+  }
 ];
 
 const Conference: React.FC<ConferenceProps> = ({ 
