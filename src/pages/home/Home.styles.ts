@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { ReactComponent as Logo } from 'assets/images/logo_home.svg';
+import Logo from 'assets/images/logo_home.svg?react';
 import bgImage from 'assets/images/home_main_image.svg';
 
 export const Wrapper = styled.div`

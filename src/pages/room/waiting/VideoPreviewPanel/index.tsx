@@ -19,7 +19,6 @@ const VideoPreviewPanel: React.FC<VideoPreviewProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    // 비디오/오디오 on/off와 장치 선택에 따라 constraints 생성
     const constraints: MediaStreamConstraints = {
       video: isVideoOn
         ? videoDeviceId
@@ -44,7 +43,6 @@ const VideoPreviewPanel: React.FC<VideoPreviewProps> = ({
         console.error("getUserMedia error:", error);
       });
 
-    // 컴포넌트 언마운트시 스트림 정리
     return () => {
       if (videoRef.current?.srcObject) {
         const tracks = (videoRef.current.srcObject as MediaStream).getTracks();

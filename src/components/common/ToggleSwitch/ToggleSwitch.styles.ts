@@ -26,7 +26,6 @@ export const Slider = styled.span<{ $checked: boolean }>`
   transition: background-color 0.3s;
 `;
 
-// 아이콘이 들어간 동그라미
 export const IconWrapper = styled.div<{ $checked: boolean }>`
   position: absolute;
 

@@ -49,7 +49,7 @@ const RecordingStatusPopup: React.FC<RecordingStatusPopupProps> = ({
   const handleStop = () => {
     stopTimer();
     onStop();
-    startTimeRef.current = null; // ⛔ 녹화 종료 시 기준 초기화
+    startTimeRef.current = null;
   };
 
   const formatTime = (seconds: number) => {

@@ -113,7 +113,6 @@ export const TargetSelector = styled.div`
   }
 `;
 
-//손들기, 손내리기
 export const HandRaiseContainer = styled.div`
   display: flex;
   justify-content: center;

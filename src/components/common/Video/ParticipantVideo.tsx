@@ -85,9 +85,9 @@ const ParticipantVideo = forwardRef<HTMLVideoElement, Props>(
     return (
       <ParticipantContainer
         id={sessionId}
-        isPreview={isPreview}
+        $isPreview={isPreview}
         className={className}
-        isSpeaking={isSpeaking}
+        $isSpeaking={isSpeaking}
       >
         <StyledVideo
           ref={ref}
@@ -102,8 +102,8 @@ const ParticipantVideo = forwardRef<HTMLVideoElement, Props>(
 
         {!isVideoOn && (
           <Placeholder
-            bgColor={getUserColor(sessionId)}
-            isPreview={isPreview}
+            $bgColor={getUserColor(sessionId)}
+            $isPreview={isPreview}
           >
             <span>{username.charAt(0).toUpperCase()}</span>
           </Placeholder>

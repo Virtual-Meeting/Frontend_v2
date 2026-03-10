@@ -8,7 +8,7 @@ interface VideoDevice {
 
 interface VideoInputSelectorProps {
   onDeviceChange: (deviceId: string) => void;
-  selectedDeviceId?: string; // 외부에서 현재 선택된 장치 ID를 받음
+  selectedDeviceId?: string;
 }
 
 const VideoInputSelector: React.FC<VideoInputSelectorProps> = ({

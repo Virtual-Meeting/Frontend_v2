@@ -1,4 +1,3 @@
-//전체 참가자별 발화 점수 관리
 import { useState, useEffect } from 'react';
 
 export function useParticipantSpeakingScores(participants: { [id: string]: MediaStream }) {

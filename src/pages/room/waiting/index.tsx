@@ -20,10 +20,8 @@ const Waiting: React.FC<Props> = ({ isRoom, isDarkMode, toggleDarkMode }) => {
     const [roomId, setRoomId] = useState(paramRoomId || '');
     const action = location.state?.action;
 
-    // 이름과 방 코드 상태 관리
     const [username, setUsername] = useState('');
 
-    // DeviceSettingsPanel에서 받아온 설정을 상태로 관리
     const [settings, setSettings] = useState<{
             isVideoOn: boolean;
             isAudioOn: boolean;
@@ -79,8 +77,6 @@ const Waiting: React.FC<Props> = ({ isRoom, isDarkMode, toggleDarkMode }) => {
             username={username}
             isVideoOn={settings.isVideoOn}
             isAudioOn={settings.isAudioOn}
-
-            // videoDeviceId, audioDeviceId는 VideoPreviewPanel에서 스트림 설정에 활용
             videoDeviceId={settings.videoDeviceId}
             audioDeviceId={settings.audioDeviceId}
           />

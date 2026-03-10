@@ -22,18 +22,10 @@ const RecordingConsentPopup: React.FC<RecordingConsentPopupProps> = ({
   const [contentChecked, setContentChecked] = useState(false); // 내용 확인 체크 여부
 
   const handleConfirm = () => {
-    // if (!contentChecked) {
-    // //   setShowError(true); // 내용 확인 안 함
-    //   return;
-    // }
     onConfirmConsent?.();
   };
 
   const handleDecline = () => {
-    // if (!contentChecked) {
-    // //   setShowError(true); // 내용 확인 안 함
-    //   return;
-    // }
     onDeclineConsent?.();
   };
 
@@ -60,7 +52,6 @@ const RecordingConsentPopup: React.FC<RecordingConsentPopupProps> = ({
           checked={contentChecked}
           onChange={() => {
             setContentChecked(prev => !prev);
-            // setShowError(false);
           }}
         />
         <CheckboxLabel htmlFor="contentCheck">
@@ -76,7 +67,7 @@ const RecordingConsentPopup: React.FC<RecordingConsentPopupProps> = ({
         <StyledButton onClick={handleConfirm} disabled={!contentChecked}>
           동의하고 회의 참여
         </StyledButton>
-        <StyledButton onClick={handleDecline} cancel disabled={!contentChecked}>
+        <StyledButton onClick={handleDecline} $cancel disabled={!contentChecked}>
           동의하지 않음 (회의 나가기)
         </StyledButton>
       </ButtonContainer>

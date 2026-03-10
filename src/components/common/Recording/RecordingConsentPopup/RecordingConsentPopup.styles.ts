@@ -52,20 +52,20 @@ export const ButtonContainer = styled.div`
   margin-top: 20px;
 `;
 
-export const StyledButton = styled.button<{ cancel?: boolean }>`
+export const StyledButton = styled.button<{ $cancel?: boolean }>`
   flex: 1;
   padding: 10px 15px;
   font-size: 14px;
   border: none;
   border-radius: ${({ theme }) => theme.borders.radius.sm};
-  background-color: ${({ cancel, theme }) => (cancel ? '#9e9e9e' : theme.colors.primary)};
+  background-color: ${({ $cancel, theme }) => ($cancel ? '#9e9e9e' : theme.colors.primary)};
   color:  #FFFFFF !important;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.3s ease;
 
   &:hover {
-    background-color: ${({ cancel }) => (cancel ? '#757575' : '#1565c0')};
+    background-color: ${({ $cancel }) => ($cancel ? '#757575' : '#1565c0')};
   }
 
   &:disabled {
