@@ -5,7 +5,7 @@ interface ListPopupProps {
     title: string;
     items: any[];
     renderItem: (item: any) => React.ReactNode;
-    onClose: () => void;  // 팝업 닫기 함수
+    onClose: () => void;
     className?: string;
     hasSidebar: boolean;
     popupLeft?: number;

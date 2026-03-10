@@ -5,8 +5,6 @@ import {
   ChevronIcon,
 } from './CollapsibleControls.styles';
 
-// import { DownIcon, UpIcon } from 'assets/icons/black';
-
 import { useIconSet } from 'lib/hooks/useIconSet';
 
 interface CollapsibleControlsProps {

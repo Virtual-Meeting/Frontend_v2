@@ -12,7 +12,6 @@ export default function useVoiceActivityDetection(
   isAudioOn: boolean,
   options: VADOptions = {}
 ) {
-  // const { intervalMs = 200, threshold = 0.05 } = options;
   const { intervalMs = 300, threshold = 0.05 } = options;
   const [isSpeaking, setIsSpeaking] = useState(false);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -25,15 +24,12 @@ export default function useVoiceActivityDetection(
       return;
     }
 
-    // const audioContext = new AudioContext();
-
     if (!sharedAudioContext) {
       sharedAudioContext = new AudioContext();
     }
     const audioContext = sharedAudioContext;
 
     const analyser = audioContext.createAnalyser();
-    // analyser.fftSize = 512;
     analyser.fftSize = 256;
 
     const source = audioContext.createMediaStreamSource(stream);
@@ -52,7 +48,6 @@ export default function useVoiceActivityDetection(
       if (!isCancelled) checkSpeaking();
     }, intervalMs);
 
-    // 저장 레퍼런스 (종료 시 close)
     audioContextRef.current = audioContext;
     analyserRef.current = analyser;
     sourceRef.current = source;
@@ -62,7 +57,6 @@ export default function useVoiceActivityDetection(
       clearInterval(interval);
       source.disconnect();
       analyser.disconnect();
-      // audioContext.close();
     };
   }, [stream, isAudioOn]);
 

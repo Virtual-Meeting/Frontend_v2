@@ -1,8 +1,9 @@
 import { useTheme } from 'styled-components';
+import * as blackIcons from 'assets/icons/black';
+import * as whiteIcons from 'assets/icons/white';
+
 
 export const useReversedIconSet = () => {
   const theme = useTheme();
-  return theme.mode === 'dark'
-    ? require('assets/icons/black') // 반전
-    : require('assets/icons/white');
+  return theme.mode === 'dark' ? blackIcons : whiteIcons;
 };

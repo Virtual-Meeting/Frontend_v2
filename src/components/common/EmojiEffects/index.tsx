@@ -11,7 +11,7 @@ interface Particle {
 
 type Props = {
   emojiName?: string;
-  maxCount?: number;  // 최대 파티클 개수
+  maxCount?: number;
 };
 
 const EmojiEffects: React.FC<Props> = ({ emojiName, maxCount = 10 }) => {
@@ -25,7 +25,6 @@ const EmojiEffects: React.FC<Props> = ({ emojiName, maxCount = 10 }) => {
     let timeouts: NodeJS.Timeout[] = [];
 
     for (let i = 0; i < count; i++) {
-      // 각 파티클을 나타낼 랜덤 딜레이 (0.1 ~ 0.5초 사이)
       const appearDelay = Math.random() * 0.4 + 0.1;
 
       const timeout = setTimeout(() => {
@@ -36,21 +35,19 @@ const EmojiEffects: React.FC<Props> = ({ emojiName, maxCount = 10 }) => {
           id,
           name: emojiName,
           left,
-          delay: 0, // 애니메이션 지연은 여기선 0으로 둬요
+          delay: 0,
         };
 
         setParticles((prev) => [...prev, newParticle]);
 
-        // 1.2초 뒤 파티클 제거
         setTimeout(() => {
           setParticles((prev) => prev.filter((p) => p.id !== id));
         }, 1200);
-      }, appearDelay * 1000 * i); // i에 곱해서 순차적 등장
+      }, appearDelay * 1000 * i);
 
       timeouts.push(timeout);
     }
 
-    // 컴포넌트 언마운트 시 타임아웃 클리어
     return () => timeouts.forEach((t) => clearTimeout(t));
   }, [emojiName, maxCount]);
 

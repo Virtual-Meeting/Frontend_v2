@@ -31,14 +31,14 @@ const EmojiPicker: React.FC<EmojiPickerProps> = ({ onSelect, onClose, participan
   };
 
   const handleToggleHand = () => {
-    const newState = !handRaised; // 현재 상태 기준으로 전환값 계산
+    const newState = !handRaised;
 
-    setHandRaised(newState); // 상태 먼저 업데이트
+    setHandRaised(newState);
 
     if (newState) {
-      handleSelect('Raising_Hands'); // 손 들기 전송
+      handleSelect('Raising_Hands');
     } else {
-      handleSelect('Lowering_Hands'); //손 내리기 전송
+      handleSelect('Lowering_Hands');
     }
   };
 

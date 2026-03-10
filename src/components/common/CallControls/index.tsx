@@ -1,20 +1,6 @@
 import React from 'react';
 import CallControlButton from './Button/CallControlButton';
 import CollapsibleControls from './CollapsibleControls';
-
-// import {
-//   MicIcon,
-//   MicOffIcon,
-//   VideoIcon,
-//   VideoOffIcon,
-//   ChatIcon,
-//   UsersIcon,
-//   RecordIcon,
-//   ScreenShareIcon,
-//   EmojiIcon,
-//   ClosedCaptioningIcon
-// } from 'assets/icons/black';
-
 import { ControlsWrapper, InteractionControls, MediaControls, ControlsToggleGroup, SystemControls } from './CallControls.styles';
 import { useIconSet } from 'lib/hooks/useIconSet';
 import Button from '../Button';

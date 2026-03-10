@@ -1,7 +1,6 @@
 
 import styled from 'styled-components';
 
-// 모달 배경
 export const Overlay = styled.div`
     display: flex;
     align-items: center;    
@@ -14,7 +13,6 @@ export const Overlay = styled.div`
     z-index: 1000;
 `;
 
-// 팝업 컨테이너
 export const PopupContainer = styled.div`
     display:flex;
     flex-direction: column;
@@ -27,13 +25,11 @@ export const PopupContainer = styled.div`
     position: relative;
 `;
 
-// 제목
 export const Title = styled.h2`
     font-size: ${({theme})=>theme.fontSizes.sm};
     color: ${({ theme }) => theme.colors.primary};
 `;
 
-// 입력 필드
 export const Input = styled.input`
     width: 90%;
     padding: 0.75rem 5%;
@@ -49,14 +45,12 @@ export const Input = styled.input`
     }
 `;
 
-// 버튼 래퍼
 export const ButtonGroup = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: ${({theme})=>theme.spacings.sm};
 `;
 
-// 버튼
 export const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
   padding: 8px 16px;
   border-radius: ${({theme})=>theme.borders.radius.sm};
@@ -84,7 +78,6 @@ export const Button = styled.button<{ variant?: 'primary' | 'secondary' }>`
   `}
 `;
 
-// 에러 메시지
 export const ErrorText = styled.p`
   color: ${({ theme }) => theme.colors.state.error};
   font-size: ${({theme})=>theme.fontSizes.xxs};

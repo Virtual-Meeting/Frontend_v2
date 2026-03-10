@@ -1,6 +1,5 @@
 import styled from 'styled-components';
 
-// 전체 메시지를 감싸는 컨테이너
 export const MessagesWrapper = styled.div`
   display: flex;
   flex: 1;
@@ -23,7 +22,6 @@ export const MessageList = styled.div`
     -ms-overflow-style: none;
 `;
 
-// 각 메시지를 감싸는 컨테이너
 export const MessageContainer = styled.div<{ isCurrentUser: boolean }>`
     display: flex;
     width: 100%
@@ -33,7 +31,6 @@ export const MessageContainer = styled.div<{ isCurrentUser: boolean }>`
     padding:${({theme})=>theme.spacings.sm} 0;
 `;
 
-// 프로필 이미지나 이름을 포함하는 부분
 export const Profile = styled.div<{ bgColor: string }>`
     flex-shrink: 0;
     display: flex;
@@ -47,7 +44,6 @@ export const Profile = styled.div<{ bgColor: string }>`
     font-weight: ${({theme})=>theme.fontWeights.bold};
 `;
 
-// 메시지 내용을 감싸는 부분
 export const MessageContent = styled.div<{ isCurrentUser: boolean }>`
     display: flex;
     flex-direction: column;
@@ -56,7 +52,6 @@ export const MessageContent = styled.div<{ isCurrentUser: boolean }>`
     margin: 0 ${({theme})=>theme.spacings.md};
 `;
 
-// 이름을 스타일링하는 부분
 export const Name = styled.strong`
     font-size: ${({theme})=>theme.fontSizes.xxs};
     color: ${({theme})=>theme.colors.chat.name};

@@ -1,5 +1,3 @@
-//점수 시스템
-//말할 때 증가, 아닐 때 감소
 import { useEffect, useRef, useState } from 'react';
 
 export default function useSpeakingScore(
@@ -33,7 +31,6 @@ export default function useSpeakingScore(
           }
           return newScore;
         });
-      // setScore(Math.round(scoreRef.current));
     }, intervalMs);
 
     return () => clearInterval(interval);

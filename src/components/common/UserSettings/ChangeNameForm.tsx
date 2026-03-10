@@ -27,7 +27,7 @@ const ChangeNameForm: React.FC<ChangeNameFormProps> = ({ currentName, sessionId,
         padding: '8px 12px',
         borderRadius: 6,
         boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-        zIndex: 1000,  // 다른 요소 위에 표시되게
+        zIndex: 1000,
      }}>
       <input
         type="text"
